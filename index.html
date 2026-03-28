@@ -8,18 +8,21 @@
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="JJ記帳">
-  <link rel="apple-touch-icon" href="icon.jpg?v=104">
+  <meta name="apple-mobile-web-app-title" content="J&J記帳">
+  <link rel="apple-touch-icon" href="icon.jpg?v=105">
   
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0288d1">
-  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22%E5%AE%B6%E5%BA%AD%E8%A8%98%E5%B8%B3%22%2C%22short_name%22%3A%22%E5%AE%B6%E5%BA%AD%E8%A8%98%E5%B8%B3%22%2C%22description%22%3A%22%E8%A8%98%E5%B8%B3%E6%98%AF%E7%82%BA%E4%BA%86%E4%B8%8D%E9%9C%80%E5%86%8D%E8%A8%98%E5%B8%B3%E3%80%82%E7%94%A8%E6%95%B8%E6%93%9A%EF%BC%8C%E6%8F%9B%E5%8F%96%E4%BD%A0%E5%80%91%E5%AE%B6%E5%BA%AD%E7%9A%84%E8%B2%A1%E5%8B%99%E8%87%AA%E7%94%B1%E3%80%82%22%2C%22start_url%22%3A%22%2F%3Fv%3D104%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f6f9%22%2C%22theme_color%22%3A%22%230288d1%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22icon.jpg%3Fv%3D104%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fjpeg%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
+  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22%E5%AE%B6%E5%BA%AD%E8%A8%98%E5%B8%B3%22%2C%22short_name%22%3A%22%E5%AE%B6%E5%BA%AD%E8%A8%98%E5%B8%B3%22%2C%22description%22%3A%22%E8%A8%98%E5%B8%B3%E6%98%AF%E7%82%BA%E4%BA%86%E4%B8%8D%E9%9C%80%E5%86%8D%E8%A8%98%E5%B8%B3%E3%80%82%E7%94%A8%E6%95%B8%E6%93%9A%EF%BC%8C%E6%8F%9B%E5%8F%96%E4%BD%A0%E5%80%91%E5%AE%B6%E5%BA%AD%E7%9A%84%E8%B2%A1%E5%8B%99%E8%87%AA%E7%94%B1%E3%80%82%22%2C%22start_url%22%3A%22%2F%3Fv%3D105%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f6f9%22%2C%22theme_color%22%3A%22%230288d1%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22icon.jpg%3Fv%3D105%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fjpeg%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D">
   
-  <title>家庭雲端收支系統 v15.6</title>
+  <title>家庭雲端收支系統 v15.7</title>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
+    /* 🌟 最關鍵的修復：強制所有元素不要超出邊界 */
+    * { box-sizing: border-box; }
+    
     /* 基礎設定 */
-    input, select, button, textarea { font-size: 16px !important; -webkit-appearance: none; appearance: none; box-sizing: border-box; font-family: inherit; }
+    input, select, button, textarea { font-size: 16px !important; -webkit-appearance: none; appearance: none; font-family: inherit; }
     body { font-family: 'Segoe UI', Microsoft JhengHei, sans-serif; background-color: #f4f6f9; margin: 0; padding: 0; color: #333; -webkit-tap-highlight-color: transparent; }
     .container { max-width: 650px; margin: 0 auto; padding: 15px; padding-bottom: 90px; }
     
@@ -115,22 +118,22 @@
     .setting-list li { background: #eee; padding: 5px 10px; border-radius: 5px; font-size: 13px; display: flex; align-items: center; }
     .del-btn { color: #ff5252; cursor: pointer; font-weight: bold; margin-left: 8px; font-size: 16px; }
 
-    /* 🔐 登入畫面專用樣式 */
-    #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f4f6f9; z-index: 3000; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 20px; transition: opacity 0.3s; }
-    .login-box { background: white; width: 100%; max-width: 350px; padding: 30px 20px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    /* 🔐 登入畫面完美置中排版 */
+    #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f4f6f9; z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 20px; transition: opacity 0.3s; }
+    .login-box { background: white; width: 100%; max-width: 340px; padding: 35px 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
   </style>
 </head>
 <body>
 
 <div id="login-screen">
   <div class="login-box">
-    <h2 style="color:#0288d1; margin-top:0; margin-bottom:20px; text-align:center;">🏠 家庭記帳系統</h2>
+    <h2 style="color:#0288d1; margin-top:0; margin-bottom:20px; text-align:center; font-size: 24px;">🏠 家庭記帳系統</h2>
     <div style="text-align:left;">
-      <p style="color:#555; font-size:14px; font-weight:bold; margin-top:0; margin-bottom:8px;">請輸入帳號密碼</p>
-      <input type="email" id="login-email" placeholder="信箱帳號 (如: home@jacky.com)" style="width:100%; padding:12px; margin-bottom:12px; border:1px solid #ddd; border-radius:8px; font-size:15px;">
-      <input type="password" id="login-password" placeholder="密碼" style="width:100%; padding:12px; margin-bottom:20px; border:1px solid #ddd; border-radius:8px; font-size:15px;">
+      <p style="color:#555; font-size:15px; font-weight:bold; margin-top:0; margin-bottom:10px;">請輸入帳號密碼解鎖</p>
+      <input type="email" id="login-email" placeholder="信箱帳號 (如: home@jacky.com)" style="width:100%; padding:14px; margin-bottom:12px; border:1px solid #ddd; border-radius:8px; font-size:16px;">
+      <input type="password" id="login-password" placeholder="密碼" style="width:100%; padding:14px; margin-bottom:25px; border:1px solid #ddd; border-radius:8px; font-size:16px;">
     </div>
-    <button onclick="handleLogin()" style="background:#0288d1; font-size:16px; width:100%;">🔓 解鎖進入</button>
+    <button onclick="handleLogin()" style="background:#0288d1; font-size:16px; width:100%; padding: 14px;">🔓 解鎖進入</button>
   </div>
 </div>
 
