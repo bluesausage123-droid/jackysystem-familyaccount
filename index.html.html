@@ -14,36 +14,65 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="icon.png">
   
-  <title>家庭雲端收支系統 v14.3</title>
+  <title>家庭雲端收支系統 v14.6</title>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
+    /* 基礎設定 */
     input, select, button, textarea { font-size: 16px !important; -webkit-appearance: none; appearance: none; box-sizing: border-box; font-family: inherit; }
     body { font-family: 'Segoe UI', Microsoft JhengHei, sans-serif; background-color: #f4f6f9; margin: 0; padding: 0; color: #333; -webkit-tap-highlight-color: transparent; }
     .container { max-width: 650px; margin: 0 auto; padding: 15px; padding-bottom: 90px; }
     
+    /* 導航列 */
     .tabs { display: flex; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden; margin-bottom: 15px; position: sticky; top: 10px; z-index: 100; }
     .tab { flex: 1; text-align: center; padding: 10px 2px; cursor: pointer; font-weight: bold; background: #f9f9f9; color: #777; transition: 0.3s; font-size: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;}
     .tab.active { background: #fff; color: #0288d1; border-bottom: 4px solid #0288d1; }
     
+    /* 💡 恢復被誤刪的核心排版與共用元件 CSS */
     .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; transition: 0.3s; }
-    h3 { margin-top: 0; color: #444; border-left: 5px solid #0288d1; padding-left: 10px; font-size: 17px; }
+    h3 { margin-top: 0; color: #444; border-left: 5px solid #0288d1; padding-left: 10px; font-size: 17px; margin-bottom: 15px; }
+    
+    /* 核心並排邏輯 */
     .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: flex-end; }
     .row > div { flex: 1; min-width: 130px; }
     label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 13px; color: #666; }
-    input[type="text"], input[type="number"], input[type="date"], select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; background-color: #fff; }
+    
+    /* 核心全域輸入框樣式 */
+    input, select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; background-color: #fff; }
+    
     button { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; }
     button:active { transform: scale(0.97); }
-
-    /* ✨ v14.3 新增：表單 3 欄等寬平均矩陣佈局 */
-    .input-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 8px; margin-bottom: 15px; }
-    .input-grid-3 > div { display: flex; flex-direction: column; min-width: 0; }
-    .input-grid-3 label { display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: bold; margin-bottom: 6px; color: #555; }
-    .input-grid-3 input, .input-grid-3 select { width: 100%; padding: 10px 6px; }
     
+    /* ✨ v14.6 新增：完美直 2 欄網格 */
+    .input-form-grid { 
+        display: grid; 
+        grid-template-columns: repeat(2, 1fr); /* 永遠保持直的 2 欄 */
+        gap: 15px 10px; 
+        margin-bottom: 15px; 
+    }
+    .input-form-grid > div { display: flex; flex-direction: column; min-width: 0; }
+    /* 設定單獨佔滿整行的欄位 (例如：項目名稱) */
+    .span-2-cols { grid-column: span 2; }
+    
+    .input-form-grid label { display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #555; }
+    
+    /* 解決日期被切斷的問題：內距與字體微調 */
+    .input-form-grid input, .input-form-grid select { 
+        width: 100%; 
+        padding: 10px 5px; 
+        border-radius: 8px; 
+        border: 1px solid #ddd; 
+        outline: none; 
+        background-color: #fff; 
+        font-size: 14px !important; /* 縮小一點確保塞得下 */
+    }
+    /* 針對日期再做極致擠壓 */
+    .input-form-grid input[type="date"] { padding: 10px 2px !important; letter-spacing: -0.5px; text-align: center;}
+
     /* 日期旁邊的微型按鈕 */
-    .quick-btn { cursor: pointer; background: #e3f2fd; color: #0288d1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 4px; border: 1px solid #bbdefb; }
+    .quick-btn { cursor: pointer; background: #e3f2fd; color: #0288d1; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px; border: 1px solid #bbdefb; }
     .quick-btn:active { background: #bbdefb; }
     
+    /* 按鈕顏色 */
     .btn-expense { background-color: #e53935; }
     .btn-expected { background-color: #f57c00; }
     .btn-income { background-color: #43a047; }
@@ -54,6 +83,7 @@
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); } }
     @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); } 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); } }
 
+    /* 清單樣式 */
     .list-item { display: flex; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid #eee; align-items: center; gap: 5px; }
     .val-expense { color: #e53935; font-weight: bold; font-size: 15px; white-space: nowrap; }
     .val-expected { color: #f57c00; font-weight: bold; font-size: 15px; white-space: nowrap; }
@@ -61,6 +91,7 @@
     .action-icons { display: flex; gap: 6px; font-size: 16px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .hidden { display: none !important; }
 
+    /* 報表與圖表 */
     .chart-container { width: 100%; height: 300px; margin-top: 10px; margin-bottom: 10px; }
     #top_chart_div { height: 250px; margin-bottom: 0;} 
     .month-nav { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; font-size: 18px; font-weight: bold; color: #0288d1; }
@@ -84,6 +115,7 @@
     .acc-item { padding: 10px 15px; border-bottom: 1px dashed #e0e0e0; display: flex; justify-content: space-between; align-items: center; font-size: 14px;}
     .btn-settle { background: #43a047; color: white; border: none; padding: 6px 8px; border-radius: 6px; margin-right: 8px; font-size: 13px; font-weight: bold; cursor: pointer; width: auto; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
+    /* 通知與彈出視窗 */
     #alert-banner-container { margin-bottom: 15px; }
     .alert-box { padding: 12px 10px; border-radius: 8px; margin-bottom: 10px; font-weight: bold; display: flex; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.08); font-size: 14px; animation: slideDown 0.3s ease-out; }
     .alert-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
@@ -99,6 +131,7 @@
     .modal-overlay.show .modal-content { transform: translateY(0); }
     .modal-btn-group { display: flex; gap: 10px; margin-top: 20px; }
 
+    /* 深度分析 Modal 樣式 */
     #drilldown-modal .modal-content { width: 95%; max-width: 550px; height: 90%; max-height: 800px; display: flex; flex-direction: column; padding: 15px; border-radius: 12px;}
     .modal-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px; flex-shrink: 0;}
     .modal-close { font-size: 28px; color: #999; cursor: pointer; user-select: none; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #f0f0f0; }
@@ -107,6 +140,7 @@
     .drilldown-total-box { background: #f9f9f9; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 10px; transition: 0.3s; }
     .chart-hint { font-size: 11px; color: #888; text-align: center; margin-top: -10px; margin-bottom: 10px; }
 
+    /* 進度條與設定 */
     .budget-card { padding: 12px 15px; margin-bottom: 15px; border-left: 5px solid #009688; }
     .budget-info { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: #555; }
     .budget-bar-bg { background: #eee; height: 8px; border-radius: 4px; margin-top: 8px; overflow: hidden; }
@@ -146,7 +180,7 @@
     <div class="card" id="form-exp-card">
       <h3 id="form-exp-title">新增支出</h3>
       
-      <div class="input-grid-3">
+      <div class="input-form-grid">
         <div>
           <label>日期 <span class="quick-btn" onclick="setQuickDate('exp-date', -1)">昨</span><span class="quick-btn" onclick="setQuickDate('exp-date', 0)">今</span></label>
           <input type="date" id="exp-date">
@@ -155,14 +189,14 @@
           <label>分類</label>
           <select id="exp-category"></select>
         </div>
-        <div>
-          <label>項目 <span style="font-weight:normal; font-size:10px; color:#0288d1;">(自動)</span></label>
-          <input type="text" id="exp-item" list="exp-item-options" placeholder="名稱" oninput="autoClassify('exp')">
+        <div class="span-2-cols">
+          <label>項目名稱 <span style="font-weight:normal; font-size:10px; color:#0288d1; margin-left:4px;">(自動歸類)</span></label>
+          <input type="text" id="exp-item" list="exp-item-options" placeholder="輸入項目名稱..." oninput="autoClassify('exp')">
           <datalist id="exp-item-options"></datalist>
         </div>
         <div>
           <label>金額</label>
-          <input type="number" id="exp-amount" inputmode="numeric">
+          <input type="number" id="exp-amount" inputmode="numeric" placeholder="0">
         </div>
         <div>
           <label>付款方式</label>
@@ -181,7 +215,7 @@
     <div class="card" id="form-exp-exp-card">
       <h3 id="form-exp-exp-title">新增待繳款項</h3>
       
-      <div class="input-grid-3">
+      <div class="input-form-grid">
         <div>
           <label>到期日 <span class="quick-btn" onclick="setQuickDate('exp-exp-date', 0)">今</span></label>
           <input type="date" id="exp-exp-date">
@@ -190,13 +224,13 @@
           <label>分類</label>
           <select id="exp-exp-category"></select>
         </div>
-        <div>
-          <label>項目 <span style="font-weight:normal; font-size:10px; color:#0288d1;">(自動)</span></label>
-          <input type="text" id="exp-exp-item" list="exp-item-options" placeholder="名稱" oninput="autoClassify('exp-exp')">
+        <div class="span-2-cols">
+          <label>待繳項目 <span style="font-weight:normal; font-size:10px; color:#0288d1; margin-left:4px;">(自動歸類)</span></label>
+          <input type="text" id="exp-exp-item" list="exp-item-options" placeholder="輸入項目名稱..." oninput="autoClassify('exp-exp')">
         </div>
         <div>
           <label>預估金額</label>
-          <input type="number" id="exp-exp-amount" inputmode="numeric">
+          <input type="number" id="exp-exp-amount" inputmode="numeric" placeholder="0">
         </div>
         <div>
           <label>付款方式</label>
@@ -229,7 +263,7 @@
     <div class="card" id="form-inc-card">
       <h3 id="form-inc-title">新增收入</h3>
       
-      <div class="input-grid-3">
+      <div class="input-form-grid">
         <div>
           <label>日期 <span class="quick-btn" onclick="setQuickDate('inc-date', -1)">昨</span><span class="quick-btn" onclick="setQuickDate('inc-date', 0)">今</span></label>
           <input type="date" id="inc-date">
@@ -239,8 +273,8 @@
           <select id="inc-receiver"></select>
         </div>
         <div>
-          <label>項目</label>
-          <input type="text" id="inc-item" list="inc-item-options" placeholder="名稱">
+          <label>項目名稱</label>
+          <input type="text" id="inc-item" list="inc-item-options" placeholder="如: 薪水">
           <datalist id="inc-item-options"></datalist>
         </div>
         <div>
@@ -250,7 +284,7 @@
         </div>
         <div>
           <label>金額</label>
-          <input type="number" id="inc-amount" inputmode="numeric">
+          <input type="number" id="inc-amount" inputmode="numeric" placeholder="0">
         </div>
         <div>
           <label>收款方式</label>
@@ -291,11 +325,11 @@
     <div id="report-view-main">
         <div id="stat-filter-panel" class="card" style="background:#f4f9f9; padding: 10px 15px; border: 1px solid #e0f2f1;">
           <div style="font-size: 13px; font-weight: bold; color: #00897b; margin-bottom: 8px;">🎯 多維度交叉篩選</div>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <select id="filter-category" onchange="updateCharts()" style="padding:8px; font-size:14px!important;"></select>
-            <select id="filter-person" onchange="updateCharts()" style="padding:8px; font-size:14px!important;"></select>
-            <select id="filter-method" onchange="updateCharts()" style="padding:8px; font-size:14px!important;"></select>
-            <input type="text" id="stat-keyword" placeholder="🔍 搜尋關鍵字..." oninput="updateCharts()" style="padding:8px; font-size:14px!important; border: 1px solid #b2dfdb; background:#fff;">
+          <div class="input-form-grid" style="margin-bottom:0;">
+            <div><select id="filter-category" onchange="updateCharts()" style="padding:8px; font-size:14px!important; background:#fff; border:1px solid #b2dfdb;"></select></div>
+            <div><select id="filter-person" onchange="updateCharts()" style="padding:8px; font-size:14px!important; background:#fff; border:1px solid #b2dfdb;"></select></div>
+            <div><select id="filter-method" onchange="updateCharts()" style="padding:8px; font-size:14px!important; background:#fff; border:1px solid #b2dfdb;"></select></div>
+            <div><input type="text" id="stat-keyword" placeholder="🔍 搜尋關鍵字..." oninput="updateCharts()" style="padding:8px; font-size:14px!important; border:1px solid #b2dfdb; background:#fff;"></div>
           </div>
         </div>
 
@@ -341,7 +375,7 @@
 
     <div class="card" style="border: 2px solid #f57c00; background: #fffdf5;">
       <h3 style="border-left-color: #f57c00;">🚀 Excel 待繳帳單匯入</h3>
-      <textarea id="bulk-import-text" rows="4" placeholder="年(民國) | 月 | 日 | 分類 | 項目名稱 | 金額"></textarea>
+      <textarea id="bulk-import-text" rows="4" placeholder="年(民國) | 月 | 日 | 分類 | 項目名稱 | 金額" style="padding-left: 10px; text-align: left;"></textarea>
       <button onclick="bulkImportExpected()" style="background:#f57c00; margin-top: 10px;">⚡ 開始批次匯入</button>
     </div>
 
@@ -731,7 +765,6 @@
 
   window.deleteRecord = (id, itemName) => { confirmAction(`刪除紀錄`, `確定要刪除「${itemName}」嗎？\n刪除後無法復原。`, '#e53935', async () => { await deleteDoc(doc(db, "family_ledger_records", id)); showToast("🗑️ 已成功刪除！"); }); };
 
-  // 💡 調整：多維度篩選器顯示/隱藏與重置邏輯
   window.changeReportMonth = (offset) => { reportCurrentMonthDate.setMonth(reportCurrentMonthDate.getMonth() + offset); isReportCustomDate = false; document.getElementById('custom-date-row').classList.add('hidden'); window.updateCharts(); };
   window.toggleCustomDate = () => { isReportCustomDate = !isReportCustomDate; const row = document.getElementById('custom-date-row'); if(isReportCustomDate) row.classList.remove('hidden'); else row.classList.add('hidden'); window.updateCharts(); };
   window.applyCustomDate = () => { if(isReportCustomDate) window.updateCharts(); };
@@ -742,7 +775,6 @@
       document.getElementById('btn-toggle-inc').classList.toggle('active-inc', mode === 'income'); 
       document.getElementById('btn-toggle-trend').classList.toggle('active-trend', mode === 'trend'); 
       
-      // 💡 當切換到「收入」或「走勢」時，自動清除先前的篩選條件
       if (mode !== 'expense') {
           document.getElementById('filter-category').value = '全部';
           document.getElementById('filter-person').value = '全部';
@@ -755,7 +787,6 @@
   window.updateCharts = () => {
     if(!google.visualization) return;
     
-    // 💡 調整：只有在「支出」模式下，才顯示多維度交叉篩選面板
     const filterPanel = document.getElementById('stat-filter-panel');
     if (filterPanel) {
         if (currentChartMode === 'expense') {
@@ -794,7 +825,6 @@
     });
 
     const totalBox = document.getElementById('big-total-container'); const totalLabel = document.getElementById('big-total-label'); const totalVal = document.getElementById('big-total-val');
-    // 💡 調整：刪除多餘的「過濾」文字
     if (currentChartMode === 'expense') { 
         totalBox.style.background = '#ffebee'; 
         totalLabel.innerText = "總支出"; 
