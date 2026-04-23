@@ -96,7 +96,6 @@
     #toast { visibility: hidden; min-width: 200px; background-color: #323232; color: #fff; text-align: center; border-radius: 30px; padding: 12px 20px; position: fixed; z-index: 1000; left: 50%; transform: translateX(-50%); bottom: 30px; font-size: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s, bottom 0.3s; font-weight: bold; }
     #toast.show { visibility: visible; opacity: 1; bottom: 80px; }
 
-    /* 🛠️ [檢查與修復] 原本的 CSS 語法錯誤 background:#fdf9f1; rgba(...) 導致覆蓋層破圖，已修正為正規的半透明黑色 */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: 0.2s; }
     .modal-overlay.show { opacity: 1; visibility: visible; }
     .modal-content { background: white; padding: 25px; border-radius: 15px; width: 85%; max-width: 350px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transform: translateY(20px); transition: 0.3s; }
@@ -193,7 +192,7 @@
         <div><label>預估金額</label><input type="number" id="exp-exp-amount" inputmode="numeric" placeholder="0"></div>
         <div><label>付款方式</label><select id="exp-exp-method"></select></div>
         
-        <div>
+        <div id="main-repeat-container">
           <label>🔁 重複設定</label>
           <select id="main-repeat-type" onchange="toggleMainCount()" style="border: 1px solid #ffb74d; background: #fff8e1; color: #e65100; font-weight: bold;">
             <option value="single">只產生單筆</option>
@@ -356,6 +355,7 @@
     </div>
   </div>
 </div>
+
 <div id="settle-modal" class="modal-overlay">
   <div class="modal-content">
     <h3 id="settle-title" style="border:none; padding:0; text-align:center; font-size:18px; margin-bottom:15px;">結清確認</h3>
@@ -383,36 +383,29 @@
 <div id="calc-modal" class="modal-overlay">
   <div class="modal-content" style="max-width: 320px; padding: 20px;">
     <h3 style="border:none; padding:0; margin:0 0 15px 0; text-align:center;">🔢 計算機</h3>
-    
     <div style="background:#f4f9f9; padding:15px; border-radius:10px; margin-bottom:15px; text-align:right;">
       <div id="calc-display" style="font-size:32px; font-weight:bold; color:#0288d1; word-break: break-all; min-height: 40px;">0</div>
     </div>
-    
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px;">
       <button onclick="calcInput('C')" style="background:#ffb74d; color:white; font-size:18px;">C</button>
       <button onclick="calcInput('DEL')" style="background:#e0e0e0; color:#333; font-size:18px;">⌫</button>
       <button onclick="calcInput('/')" style="background:#e0e0e0; color:#333; font-size:20px;">÷</button>
       <button onclick="calcInput('*')" style="background:#e0e0e0; color:#333; font-size:20px;">×</button>
-      
       <button onclick="calcInput('7')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:20px;">7</button>
       <button onclick="calcInput('8')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:20px;">8</button>
       <button onclick="calcInput('9')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:20px;">9</button>
       <button onclick="calcInput('-')" style="background:#e0e0e0; color:#333; font-size:24px;">-</button>
-      
       <button onclick="calcInput('4')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:20px;">4</button>
       <button onclick="calcInput('5')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:20px;">5</button>
       <button onclick="calcInput('6')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:20px;">6</button>
       <button onclick="calcInput('+')" style="background:#e0e0e0; color:#333; font-size:22px;">+</button>
-      
       <button onclick="calcInput('1')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:20px;">1</button>
       <button onclick="calcInput('2')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:20px;">2</button>
       <button onclick="calcInput('3')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:20px;">3</button>
       <button onclick="calcInput('=')" style="background:#43a047; color:white; grid-row: span 2; font-size:24px;">=</button>
-      
       <button onclick="calcInput('0')" style="background:#fff; color:#333; border: 1px solid #ddd; grid-column: span 2; font-size:20px;">0</button>
       <button onclick="calcInput('.')" style="background:#fff; color:#333; border: 1px solid #ddd; font-size:24px;">.</button>
     </div>
-
     <div class="modal-btn-group">
       <button onclick="closeCalc()" style="background:#e0e0e0; color:#333; flex:1;">取消</button>
       <button onclick="confirmCalc()" style="background:#0288d1; color:white; flex:1.5;">✅ 確定帶入</button>
@@ -435,28 +428,23 @@
 <div id="duplicate-modal" class="modal-overlay" style="z-index: 2600;">
   <div class="modal-content" style="text-align: left; max-width: 320px; padding: 25px 20px;">
     <h3 style="border:none; padding:0; text-align:center; font-size:18px; margin-bottom:20px; color:#333;">建立未來的待繳帳單</h3>
-    
     <div style="display: flex; flex-direction: column; gap: 12px;">
       <div>
         <label style="font-size:13px; color:#666; margin-bottom:4px;">帳單名稱 (不可改)</label>
         <input type="text" id="dup-item" readonly style="background-color:#f5f5f5; color:#888; border:1px solid #e0e0e0; cursor:not-allowed;">
       </div>
-      
       <div>
         <label style="font-size:13px; color:#666; margin-bottom:4px;">支出分類 (不可改)</label>
         <input type="text" id="dup-category" readonly style="background-color:#f5f5f5; color:#888; border:1px solid #e0e0e0; cursor:not-allowed;">
       </div>
-      
       <div>
         <label style="font-size:13px; color:#666; margin-bottom:4px;">💰 繳款金額 (可修改)</label>
         <input type="number" id="dup-amount" inputmode="numeric" style="border:1px solid #ffb74d;">
       </div>
-      
       <div>
         <label style="font-size:13px; color:#666; margin-bottom:4px;">📅 下期到期日</label>
         <input type="date" id="dup-date" style="border:1px solid #ffb74d;">
       </div>
-      
       <div>
         <label style="font-size:13px; color:#666; margin-bottom:4px;">🔁 重複設定</label>
         <select id="dup-repeat-type" onchange="toggleDupCount()" style="border:1px solid #ffb74d;">
@@ -465,50 +453,15 @@
           <option value="single">只產生單筆</option>
         </select>
       </div>
-      
       <div id="dup-count-container">
         <label style="font-size:13px; color:#666; margin-bottom:4px;">🔢 產生期數</label>
         <input type="number" id="dup-count" value="12" inputmode="numeric" style="border:1px solid #ffb74d;">
         <div style="font-size:11px; color:#999; margin-top:6px; line-height: 1.4;">系統將依據此數量，為您一次建立多筆待繳紀錄。</div>
       </div>
     </div>
-
     <div class="modal-btn-group" style="margin-top: 25px;">
       <button onclick="closeDuplicateModal()" style="background:#e0e0e0; color:#333; flex:1; padding:12px; border-radius:8px; font-weight:bold;">取消</button>
       <button onclick="confirmDuplicate()" style="background:#0288d1; color:white; flex:1.5; padding:12px; border-radius:8px; font-weight:bold;">✅ 批次建立</button>
-    </div>
-  </div>
-</div>
-
-<div id="duplicate-modal" class="modal-overlay" style="z-index: 2600;">
-  <div class="modal-content" style="text-align: left; max-width: 320px; padding: 25px 20px;">
-    <h3 style="border:none; padding:0; text-align:center; font-size:18px; margin-bottom:20px;">建立未來的待繳帳單</h3>
-    <div style="display: flex; flex-direction: column; gap: 12px;">
-      <div><label>帳單名稱 (不可改)</label><input type="text" id="dup-item" readonly style="background:#f5f5f5; color:#888;"></div>
-      <div><label>支出分類 (不可改)</label><input type="text" id="dup-category" readonly style="background:#f5f5f5; color:#888;"></div>
-      <div><label>💰 繳款金額 (可修改)</label><input type="number" id="dup-amount" inputmode="numeric" style="border:1px solid #ffb74d;"></div>
-      <div><label>📅 下期到期日</label><input type="date" id="dup-date" style="border:1px solid #ffb74d;"></div>
-      <div><label>🔁 重複設定</label>
-        <select id="dup-repeat-type" onchange="toggleDupCount()" style="border:1px solid #ffb74d;">
-          <option value="month">每月自動重複產生</option>
-          <option value="year">每年自動重複產生</option>
-          <option value="single">只產生單筆</option>
-        </select>
-      </div>
-      <div id="dup-count-container"><label>🔢 產生期數</label><input type="number" id="dup-count" value="12" inputmode="numeric" style="border:1px solid #ffb74d;"></div>
-    </div>
-    <div class="modal-btn-group"><button onclick="closeDuplicateModal()" style="background:#e0e0e0; flex:1;">取消</button><button onclick="confirmDuplicate()" style="background:#0288d1; color:white; flex:1.5;">✅ 批次建立</button></div>
-  </div>
-</div>
-
-<div id="delete-series-modal" class="modal-overlay" style="z-index: 2600;">
-  <div class="modal-content">
-    <h3 style="border:none; padding:0; text-align:center; font-size:18px; margin-bottom:10px;">🗑️ 刪除批次紀錄</h3>
-    <p style="font-size:14px; color:#666; margin-top:0;">這是一組批次產生的紀錄。請問要刪除哪部分？</p>
-    <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
-      <button onclick="executeDeleteSeries('all')" style="background:#e53935; color:white; padding:12px;">刪除此系列【所有未結清】紀錄</button>
-      <button onclick="executeDeleteSeries('single')" style="background:#f57c00; color:white; padding:12px;">只刪除【這筆】紀錄</button>
-      <button onclick="closeDeleteSeries()" style="background:#e0e0e0; padding:12px;">取消</button>
     </div>
   </div>
 </div>
@@ -543,6 +496,10 @@
   window.previousDrilldownCatForEdit = null;
   let sharedSettings = {}; 
 
+  // --- 開關控制邏輯 ---
+  window.toggleMainCount = () => { document.getElementById('main-count-container').style.display = document.getElementById('main-repeat-type').value === 'single' ? 'none' : 'block'; };
+  window.toggleDupCount = () => { document.getElementById('dup-count-container').style.display = document.getElementById('dup-repeat-type').value === 'single' ? 'none' : 'block'; };
+
   window.handleLogin = async () => {
       const emailInput = document.getElementById('login-email');
       const passwordInput = document.getElementById('login-password');
@@ -552,51 +509,28 @@
       if(!email || !password) return showToast("⚠️ 請輸入帳號密碼");
       
       const btn = document.querySelector('#login-screen button');
-      
-      // ⏳ 1. 進入「登入中」狀態：改變文字、顏色，並鎖定輸入與按鈕
-      btn.innerHTML = "⏳ 登入中...";
-      btn.style.background = "#9e9e9e"; // 按鈕變灰色
-      btn.style.cursor = "not-allowed"; // 游標變成禁止符號
-      btn.disabled = true;              // 鎖定按鈕防止連點
-      emailInput.disabled = true;       // 鎖定帳號輸入框
-      passwordInput.disabled = true;    // 鎖定密碼輸入框
+      btn.innerHTML = "⏳ 登入中..."; btn.style.background = "#9e9e9e"; btn.style.cursor = "not-allowed"; btn.disabled = true; emailInput.disabled = true; passwordInput.disabled = true;
 
       try {
           await signInWithEmailAndPassword(auth, email, password);
           showToast("✅ 解鎖成功！");
-          // 登入成功後，畫面會被 onAuthStateChanged 隱藏，所以不用特地改回按鈕狀態
       } catch(error) {
-          // ❌ 2. 若登入失敗：恢復原本的按鈕與輸入框狀態
-          btn.innerHTML = "🔓 解鎖進入";
-          btn.style.background = "#0288d1"; // 恢復藍色
-          btn.style.cursor = "pointer";     // 恢復正常游標
-          btn.disabled = false;             // 解鎖按鈕
-          emailInput.disabled = false;      // 解鎖帳號輸入框
-          passwordInput.disabled = false;   // 解鎖密碼輸入框
+          btn.innerHTML = "🔓 解鎖進入"; btn.style.background = "#0288d1"; btn.style.cursor = "pointer"; btn.disabled = false; emailInput.disabled = false; passwordInput.disabled = false;
           showToast("❌ 密碼錯誤，請重試");
       }
   };
 
-  window.handleLogout = async () => {
-      await signOut(auth);
-      window.location.reload(); 
-  };
+  window.handleLogout = async () => { await signOut(auth); window.location.reload(); };
 
   let isAppInitialized = false;
   onAuthStateChanged(auth, (user) => {
       if (user) {
-          // ✅ 已登入：隱藏整個登入畫面，顯示主系統
           document.getElementById('login-screen').classList.add('hidden');
           document.getElementById('main-app').style.display = 'block';
-          if (!isAppInitialized) {
-              startDatabaseListeners();
-              isAppInitialized = true;
-          }
+          if (!isAppInitialized) { startDatabaseListeners(); isAppInitialized = true; }
       } else {
-          // ❌ 未登入：隱藏「載入中」文字，顯示「輸入帳密」區塊
           document.getElementById('login-loading-area').style.display = 'none';
           document.getElementById('login-form-area').style.display = 'block';
-          
           document.getElementById('login-screen').classList.remove('hidden');
           document.getElementById('main-app').style.display = 'none';
       }
@@ -634,9 +568,7 @@
   const predefinedColors = { "食": "#f44336", "衣": "#ff4081", "住": "#3f51b5", "行": "#03a9f4", "育": "#009688", "樂": "#fbc02d", "貸款": "#9c27b0", "捐贈": "#ff9800", "醫藥": "#e91e63", "保險": "#2196f3", "稅金": "#607d8b", "工作": "#8bc34a", "卡費": "#9e9e9e" };
   const getColor = (cat) => { if (predefinedColors[cat]) return predefinedColors[cat]; const palette = ["#ff5722", "#673ab7", "#3f51b5", "#00bcd4", "#4caf50", "#cddc39", "#ffc107", "#795548", "#607d8b", "#e91e63", "#009688"]; let hash = 0; for(let i=0; i<cat.length; i++) hash = cat.charCodeAt(i) + ((hash << 5) - hash); return palette[Math.abs(hash) % palette.length]; };
   const incColorMap = { '公': '#e53935', '婆': '#ff9800', '萌': '#4caf50' };
-  const keywordMap = {
-    "食": ["吃", "喝", "餐", "早", "午", "晚", "飲料", "超市", "全聯", "便當", "菜", "咖啡", "零食"], "衣": ["治裝", "髮", "保養", "化妝", "衣服", "鞋", "服飾"], "住": ["生活用品", "電信", "水電", "瓦斯", "管理費", "網路", "修繕", "租"], "行": ["交通", "油", "罰單", "車票", "高鐵", "捷運", "計程車", "停車", "台鐵"], "育": ["學習", "課", "訂閱", "書", "文具", "學費"], "樂": ["娛樂", "運動", "旅遊", "住宿", "門票", "Netflix", "按摩", "放鬆", "玩具"], "貸款": ["信貸", "房貸", "車貸", "貸款"], "捐贈": ["孝親", "捐", "香油錢", "禮物", "請客", "紅包"], "醫藥": ["掛號", "藥", "診", "醫"], "保險": ["保險", "保單", "保費", "健保"], "稅金": ["稅", "燃料", "牌照"], "工作": ["郵寄", "印", "手續費"], "卡費": ["信用卡", "卡費", "帳單"]
-  };
+  const keywordMap = { "食": ["吃", "喝", "餐", "早", "午", "晚", "飲料", "超市", "全聯", "便當", "菜", "咖啡", "零食"], "衣": ["治裝", "髮", "保養", "化妝", "衣服", "鞋", "服飾"], "住": ["生活用品", "電信", "水電", "瓦斯", "管理費", "網路", "修繕", "租"], "行": ["交通", "油", "罰單", "車票", "高鐵", "捷運", "計程車", "停車", "台鐵"], "育": ["學習", "課", "訂閱", "書", "文具", "學費"], "樂": ["娛樂", "運動", "旅遊", "住宿", "門票", "Netflix", "按摩", "放鬆", "玩具"], "貸款": ["信貸", "房貸", "車貸", "貸款"], "捐贈": ["孝親", "捐", "香油錢", "禮物", "請客", "紅包"], "醫藥": ["掛號", "藥", "診", "醫"], "保險": ["保險", "保單", "保費", "健保"], "稅金": ["稅", "燃料", "牌照"], "工作": ["郵寄", "印", "手續費"], "卡費": ["信用卡", "卡費", "帳單"] };
 
   google.charts.load('current', {'packages':['corechart']});
 
@@ -645,101 +577,28 @@
   window.closeConfirm = () => { document.getElementById('confirm-modal').classList.remove('show'); };
   window.setQuickDate = (id, offsetDays) => { const d = new Date(); d.setDate(d.getDate() + offsetDays); document.getElementById(id).value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   
-// 讓日期自由跳轉一個月或一年
   window.shiftDate = (id, offset, unit) => {
-      const input = document.getElementById(id);
-      if (!input.value) return;
-      let d = new Date(input.value);
-      if (unit === 'month') d.setMonth(d.getMonth() + offset);
-      else if (unit === 'year') d.setFullYear(d.getFullYear() + offset);
-      
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      input.value = `${yyyy}-${mm}-${dd}`;
+      const input = document.getElementById(id); if (!input.value) return; let d = new Date(input.value);
+      if (unit === 'month') d.setMonth(d.getMonth() + offset); else if (unit === 'year') d.setFullYear(d.getFullYear() + offset);
+      input.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
-  // --- 一般計算機邏輯 ---
-  let calcExpression = "0";
-  let calcTargetInputId = '';
-
+  let calcExpression = "0"; let calcTargetInputId = '';
   window.openCalc = (targetId) => {
-      calcTargetInputId = targetId;
-      // 讀取目標欄位原本的數字，如果沒有就是 0
-      const initialVal = document.getElementById(targetId).value;
+      calcTargetInputId = targetId; const initialVal = document.getElementById(targetId).value;
       calcExpression = initialVal ? String(initialVal) : "0";
-      
-      document.getElementById('calc-display').innerText = calcExpression;
-      document.getElementById('calc-modal').classList.add('show');
+      document.getElementById('calc-display').innerText = calcExpression; document.getElementById('calc-modal').classList.add('show');
   };
-
   window.calcInput = (key) => {
-      if (key === 'C') {
-          // 清除全部
-          calcExpression = "0";
-      } else if (key === 'DEL') {
-          // 刪除最後一個字元
-          calcExpression = calcExpression.slice(0, -1);
-          if (calcExpression === "" || calcExpression === "-") {
-              calcExpression = "0";
-          }
-      } else if (key === '=') {
-          // 按下等號，進行運算
-          try {
-              let expr = calcExpression.replace(/×/g, '*').replace(/÷/g, '/');
-              let result = new Function('return ' + expr)();
-              result = Math.round(result * 100) / 100; // 處理小數點浮點數誤差
-              calcExpression = String(result);
-          } catch (e) {
-              // 算式不完整不動作
-          }
-      } else {
-          // 輸入數字或運算符
-          let displayKey = key;
-          if (key === '*') displayKey = '×';
-          if (key === '/') displayKey = '÷';
-          
-          if (calcExpression === "0" && /[0-9]/.test(key)) {
-              calcExpression = key; // 初始狀態覆蓋 0
-          } else {
-              calcExpression += displayKey; // 繼續拼接字串
-          }
-      }
+      if (key === 'C') { calcExpression = "0"; } else if (key === 'DEL') { calcExpression = calcExpression.slice(0, -1); if (calcExpression === "" || calcExpression === "-") calcExpression = "0"; } else if (key === '=') { try { let expr = calcExpression.replace(/×/g, '*').replace(/÷/g, '/'); let result = new Function('return ' + expr)(); result = Math.round(result * 100) / 100; calcExpression = String(result); } catch (e) {} } else { let displayKey = key; if (key === '*') displayKey = '×'; if (key === '/') displayKey = '÷'; if (calcExpression === "0" && /[0-9]/.test(key)) { calcExpression = key; } else { calcExpression += displayKey; } }
       document.getElementById('calc-display').innerText = calcExpression;
   };
-
-  window.closeCalc = () => {
-      document.getElementById('calc-modal').classList.remove('show');
-  };
-
+  window.closeCalc = () => { document.getElementById('calc-modal').classList.remove('show'); };
   window.confirmCalc = () => {
-      // 確定帶入前，先幫使用者自動算完結果 (以防他忘了按等號)
-      try {
-          let expr = calcExpression.replace(/×/g, '*').replace(/÷/g, '/');
-          let result = new Function('return ' + expr)();
-          result = Math.round(result * 100) / 100; 
-          
-          const finalSum = result > 0 ? result : 0; // 記帳金額不接受負數
-          document.getElementById(calcTargetInputId).value = finalSum > 0 ? finalSum : '';
-          document.getElementById('calc-modal').classList.remove('show');
-          showToast("✅ 已帶入計算結果！");
-      } catch (e) {
-          showToast("⚠️ 算式未完成，請確認");
-      }
+      try { let expr = calcExpression.replace(/×/g, '*').replace(/÷/g, '/'); let result = new Function('return ' + expr)(); result = Math.round(result * 100) / 100; const finalSum = result > 0 ? result : 0; document.getElementById(calcTargetInputId).value = finalSum > 0 ? finalSum : ''; document.getElementById('calc-modal').classList.remove('show'); showToast("✅ 已帶入計算結果！"); } catch (e) { showToast("⚠️ 算式未完成，請確認"); }
   };
-  // ------------------------------
 
-  window.toggleForm = (prefix) => { 
-      const form = document.getElementById(`form-${prefix}-card`); 
-      const btn = document.getElementById(`btn-toggle-form-${prefix}`); 
-      if (form.classList.contains('hidden')) { 
-          form.classList.remove('hidden'); 
-          btn.innerHTML = '➖ 收起表單'; 
-      } else { 
-          form.classList.add('hidden'); 
-          btn.innerHTML = '➕ 展開表單'; 
-      } 
-  };
+  window.toggleForm = (prefix) => { const form = document.getElementById(`form-${prefix}-card`); const btn = document.getElementById(`btn-toggle-form-${prefix}`); if (form.classList.contains('hidden')) { form.classList.remove('hidden'); btn.innerHTML = '➖ 收起表單'; } else { form.classList.add('hidden'); btn.innerHTML = '➕ 展開表單'; } };
 
   window.exportCSV = () => {
       confirmAction("📥 匯出資料", "將所有帳目下載為 CSV 檔？", "#1976d2", () => {
@@ -759,29 +618,12 @@
   };
 
   window.openDrilldown = (catName) => {
-      if(!catName) return;
-      const displayCat = currentChartMode === 'expense' ? (emojiMap[catName] || catName) : catName;
-      document.getElementById('drilldown-title').innerText = `${displayCat} 分析`;
-      
+      if(!catName) return; const displayCat = currentChartMode === 'expense' ? (emojiMap[catName] || catName) : catName; document.getElementById('drilldown-title').innerText = `${displayCat} 分析`;
       let start, end, rangeLabel; let endMonthDate; 
-      if (isReportCustomDate) { 
-          start = document.getElementById('stat-start').value; end = document.getElementById('stat-end').value; 
-          rangeLabel = `${start.substring(5)} ~ ${end.substring(5)} 總計`; endMonthDate = new Date(end); 
-      } else { 
-          const y = reportCurrentMonthDate.getFullYear(); const m = String(reportCurrentMonthDate.getMonth() + 1).padStart(2, '0'); 
-          start = `${y}-${m}-01`; const lastDay = new Date(y, reportCurrentMonthDate.getMonth() + 1, 0).getDate(); 
-          end = `${y}-${m}-${String(lastDay).padStart(2, '0')}`; rangeLabel = `${y}年${m}月 總計`; endMonthDate = new Date(reportCurrentMonthDate); 
-      }
-
-      const fPerson = document.getElementById('filter-person').value;
-      const fMethod = document.getElementById('filter-method').value;
-      const keyword = document.getElementById('stat-keyword').value.trim().toLowerCase();
-
-      const months = []; let d = new Date(endMonthDate); d.setMonth(d.getMonth() - 5);
-      for(let i=0; i<6; i++) { months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); d.setMonth(d.getMonth() + 1); }
-      
+      if (isReportCustomDate) { start = document.getElementById('stat-start').value; end = document.getElementById('stat-end').value; rangeLabel = `${start.substring(5)} ~ ${end.substring(5)} 總計`; endMonthDate = new Date(end); } else { const y = reportCurrentMonthDate.getFullYear(); const m = String(reportCurrentMonthDate.getMonth() + 1).padStart(2, '0'); start = `${y}-${m}-01`; const lastDay = new Date(y, reportCurrentMonthDate.getMonth() + 1, 0).getDate(); end = `${y}-${m}-${String(lastDay).padStart(2, '0')}`; rangeLabel = `${y}年${m}月 總計`; endMonthDate = new Date(reportCurrentMonthDate); }
+      const fPerson = document.getElementById('filter-person').value; const fMethod = document.getElementById('filter-method').value; const keyword = document.getElementById('stat-keyword').value.trim().toLowerCase();
+      const months = []; let d = new Date(endMonthDate); d.setMonth(d.getMonth() - 5); for(let i=0; i<6; i++) { months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); d.setMonth(d.getMonth() + 1); }
       const sixMonthsStart = `${months[0]}-01`; const sixMonthsEnd = `${months[5]}-31`;
-
       const allDrilldownRecords = cloudRecords.filter(r => {
           if (!(r.date >= sixMonthsStart && r.date <= sixMonthsEnd && !r.isExpected && r.category !== '分類' && r.category !== '卡費')) return false;
           if (currentChartMode === 'expense' && r.category !== catName) return false;
@@ -792,84 +634,32 @@
           return true;
       }).sort(sortByDateDescThenCreatedAsc);
 
-      let allAgg = {}; months.forEach(m => allAgg[m] = 0);
-      allDrilldownRecords.forEach(r => { let m = r.date.substring(0, 7); if (allAgg[m] !== undefined) allAgg[m] += r.amount; });
+      let allAgg = {}; months.forEach(m => allAgg[m] = 0); allDrilldownRecords.forEach(r => { let m = r.date.substring(0, 7); if (allAgg[m] !== undefined) allAgg[m] += r.amount; });
 
       const renderList = (filterStart, filterEnd, labelStr) => {
-          const details = allDrilldownRecords.filter(r => r.date >= filterStart && r.date <= filterEnd);
-          let total = 0;
-          const listHtml = details.map(r => {
-              total += r.amount;
-              const methodOrPayer = currentChartMode === 'expense' ? r.method : r.payer;
-              
-              // 📝 新增功能：加上刪除按鈕 🗑️
-              // 💡 防呆機制：在 onclick 裡面加入 closeDrilldown()，確保點擊刪除時能關閉明細視窗，避免畫面跟刪除確認框重疊
-              return `<div class="acc-item"><div style="flex:1; min-width:0; padding-right:10px;"><div style="font-weight:bold; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.item}</div><div style="font-size:12px; color:#888;">${r.date} | ${methodOrPayer || '無'}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><span style="font-weight:bold; color:${currentChartMode==='expense'?'#e53935':'#43a047'}; margin-right:8px; font-size:15px;">$${r.amount.toLocaleString()}</span><span class="action-icons" style="font-size:16px;"><span onclick="triggerEdit('${r.id}', '${catName}')">✏️</span><span onclick="closeDrilldown(); deleteRecord('${r.id}', '${r.item}')">🗑️</span></span></div></div>`;
-          }).join('');
-          document.getElementById('drilldown-range-label').innerText = labelStr;
-          document.getElementById('drilldown-total-val').innerText = `$${total.toLocaleString()}`;
-          document.getElementById('drilldown-total-val').style.color = currentChartMode === 'expense' ? '#e53935' : '#43a047';
-          document.getElementById('drilldown-list-container').innerHTML = listHtml || '<div style="text-align:center;color:#999;padding:20px;">此月份無明細記錄。</div>';
+          const details = allDrilldownRecords.filter(r => r.date >= filterStart && r.date <= filterEnd); let total = 0;
+          const listHtml = details.map(r => { total += r.amount; const methodOrPayer = currentChartMode === 'expense' ? r.method : r.payer; return `<div class="acc-item"><div style="flex:1; min-width:0; padding-right:10px;"><div style="font-weight:bold; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.item}</div><div style="font-size:12px; color:#888;">${r.date} | ${methodOrPayer || '無'}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><span style="font-weight:bold; color:${currentChartMode==='expense'?'#e53935':'#43a047'}; margin-right:8px; font-size:15px;">$${r.amount.toLocaleString()}</span><span class="action-icons" style="font-size:16px;"><span onclick="triggerEdit('${r.id}', '${catName}')">✏️</span><span onclick="closeDrilldown(); deleteRecord('${r.id}', '${r.item}')">🗑️</span></span></div></div>`; }).join('');
+          document.getElementById('drilldown-range-label').innerText = labelStr; document.getElementById('drilldown-total-val').innerText = `$${total.toLocaleString()}`; document.getElementById('drilldown-total-val').style.color = currentChartMode === 'expense' ? '#e53935' : '#43a047'; document.getElementById('drilldown-list-container').innerHTML = listHtml || '<div style="text-align:center;color:#999;padding:20px;">此月份無明細記錄。</div>';
       };
 
-      document.getElementById('drilldown-list-title').innerText = "🗓️ 區間明細記錄";
-      renderList(start, end, rangeLabel);
-
-      const chartDiv = document.getElementById('drilldown_chart_div'); chartDiv.innerHTML = ''; 
-      const chartData = [['月份', '金額', { role: 'style' }]];
-      const chartColor = currentChartMode === 'expense' ? getColor(catName) : (incColorMap[catName] || '#43a047');
+      document.getElementById('drilldown-list-title').innerText = "🗓️ 區間明細記錄"; renderList(start, end, rangeLabel);
+      const chartDiv = document.getElementById('drilldown_chart_div'); chartDiv.innerHTML = ''; const chartData = [['月份', '金額', { role: 'style' }]]; const chartColor = currentChartMode === 'expense' ? getColor(catName) : (incColorMap[catName] || '#43a047');
       months.forEach(m => chartData.push([m.substring(5)+"月", allAgg[m], chartColor]));
-      
       drilldownChartObj = new google.visualization.ColumnChart(chartDiv);
       google.visualization.events.addListener(drilldownChartObj, 'select', function() {
           const selection = drilldownChartObj.getSelection();
-          if (selection.length > 0) {
-              const selectedRow = selection[0].row; const selectedMonthStr = months[selectedRow]; 
-              const splitM = selectedMonthStr.split('-'); const monthLabel = `${splitM[0]}年${splitM[1]}月 總計`;
-              document.getElementById('drilldown-list-title').innerText = `🗓️ ${splitM[1]}月 明細`;
-              renderList(`${selectedMonthStr}-01`, `${selectedMonthStr}-31`, monthLabel);
-          } else {
-              document.getElementById('drilldown-list-title').innerText = "🗓️ 區間明細記錄"; renderList(start, end, rangeLabel);
-          }
+          if (selection.length > 0) { const selectedRow = selection[0].row; const selectedMonthStr = months[selectedRow]; const splitM = selectedMonthStr.split('-'); const monthLabel = `${splitM[0]}年${splitM[1]}月 總計`; document.getElementById('drilldown-list-title').innerText = `🗓️ ${splitM[1]}月 明細`; renderList(`${selectedMonthStr}-01`, `${selectedMonthStr}-31`, monthLabel); } else { document.getElementById('drilldown-list-title').innerText = "🗓️ 區間明細記錄"; renderList(start, end, rangeLabel); }
       });
-
       drilldownChartObj.draw(google.visualization.arrayToDataTable(chartData), { legend: 'none', chartArea: { left: '15%', top: 10, width: '80%', height: '80%' }, vAxis: { minValue: 0, format: 'short' }, hAxis: { textStyle: { fontSize: 11 } }, animation: { startup: true, duration: 500 } });
       document.getElementById('drilldown-modal').classList.add('show');
   };
   window.closeDrilldown = () => { document.getElementById('drilldown-modal').classList.remove('show'); };
 
   window.updateHistoryDatalists = () => {
-      // 取得目前畫面上選擇的分類
-      const expCat = document.getElementById('exp-category').value;
-      const expExpCat = document.getElementById('exp-exp-category').value;
-      
-      const expMap = {}; const expExpMap = {}; const incMap = {};
-      
-      cloudRecords.forEach(r => {
-          if (r.item) {
-              if (r.type === 'expense' || r.type === '支出') {
-                  // 一般支出：只抓符合目前選擇「分類」的項目
-                  if (!r.isExpected && (!expCat || r.category === expCat)) {
-                      expMap[r.item] = (expMap[r.item] || 0) + 1;
-                  }
-                  // 待繳款項：只抓符合目前選擇「分類」的項目
-                  if (r.isExpected && (!expExpCat || r.category === expExpCat)) {
-                      expExpMap[r.item] = (expExpMap[r.item] || 0) + 1;
-                  }
-              } else if (r.type === 'income' || r.type === '收入') {
-                  incMap[r.item] = (incMap[r.item] || 0) + 1;
-              }
-          }
-      });
-      
-      // 更新畫面上的下拉選單內容
+      const expCat = document.getElementById('exp-category').value; const expExpCat = document.getElementById('exp-exp-category').value; const expMap = {}; const expExpMap = {}; const incMap = {};
+      cloudRecords.forEach(r => { if (r.item) { if (r.type === 'expense' || r.type === '支出') { if (!r.isExpected && (!expCat || r.category === expCat)) { expMap[r.item] = (expMap[r.item] || 0) + 1; } if (r.isExpected && (!expExpCat || r.category === expExpCat)) { expExpMap[r.item] = (expExpMap[r.item] || 0) + 1; } } else if (r.type === 'income' || r.type === '收入') { incMap[r.item] = (incMap[r.item] || 0) + 1; } } });
       document.getElementById('exp-item-options').innerHTML = Object.entries(expMap).sort((a,b)=>b[1]-a[1]).slice(0,30).map(x=>`<option value="${x[0]}">`).join('');
-      
-      const expExpOptions = document.getElementById('exp-exp-item-options');
-      if (expExpOptions) {
-          expExpOptions.innerHTML = Object.entries(expExpMap).sort((a,b)=>b[1]-a[1]).slice(0,30).map(x=>`<option value="${x[0]}">`).join('');
-      }
-      
+      const expExpOptions = document.getElementById('exp-exp-item-options'); if (expExpOptions) { expExpOptions.innerHTML = Object.entries(expExpMap).sort((a,b)=>b[1]-a[1]).slice(0,30).map(x=>`<option value="${x[0]}">`).join(''); }
       document.getElementById('inc-item-options').innerHTML = Object.entries(incMap).sort((a,b)=>b[1]-a[1]).slice(0,30).map(x=>`<option value="${x[0]}">`).join('');
   };
 
@@ -892,9 +682,6 @@
     if (foundCat) { const catSelect = document.getElementById(`${prefix}-category`); if(Array.from(catSelect.options).some(opt => opt.value === foundCat)) catSelect.value = foundCat; }
   };
 
-window.toggleMainCount = () => { document.getElementById('main-count-container').style.display = document.getElementById('main-repeat-type').value === 'single' ? 'none' : 'block'; };
-  window.toggleDupCount = () => { document.getElementById('dup-count-container').style.display = document.getElementById('dup-repeat-type').value === 'single' ? 'none' : 'block'; };
-
   window.saveData = async (type) => {
     let prefix = ''; let isExp = false; let isExpected = false;
     if (type === 'expense') { prefix = 'exp'; isExp = true; } 
@@ -902,14 +689,7 @@ window.toggleMainCount = () => { document.getElementById('main-count-container')
     else if (type === 'income') { prefix = 'inc'; }
     
     const amtInput = document.getElementById(`${prefix}-amount`).value;
-    const data = { 
-        type: isExp ? 'expense' : 'income', 
-        date: document.getElementById(`${prefix}-date`).value, 
-        amount: Number(amtInput), 
-        item: document.getElementById(`${prefix}-item`).value.trim(), 
-        category: isExp ? document.getElementById(`${prefix}-category`).value : '收入', 
-        isExpected: isExpected 
-    };
+    const data = { type: isExp ? 'expense' : 'income', date: document.getElementById(`${prefix}-date`).value, amount: Number(amtInput), item: document.getElementById(`${prefix}-item`).value.trim(), category: isExp ? document.getElementById(`${prefix}-category`).value : '收入', isExpected: isExpected };
     if (isExpected) { data.dueDate = data.date; data.method = document.getElementById('exp-exp-method').value; }
     else if (isExp) { data.method = document.getElementById('exp-method').value; }
     else { data.payer = document.getElementById('inc-payer-input').value; data.receiver = document.getElementById('inc-receiver').value; data.method = document.getElementById('inc-method').value; }
@@ -928,12 +708,9 @@ window.toggleMainCount = () => { document.getElementById('main-count-container')
             data.createdAt = serverTimestamp(); 
             await addDoc(collection(db, "family_ledger_records"), data); 
         } else {
-            const groupId = 'group_' + Date.now();
-            let baseDate = new Date(data.date);
+            const groupId = 'group_' + Date.now(); let baseDate = new Date(data.date);
             for (let i = 0; i < rCount; i++) {
-                let d = new Date(baseDate);
-                if (rType === 'month') d.setMonth(d.getMonth() + i);
-                else d.setFullYear(d.getFullYear() + i);
+                let d = new Date(baseDate); if (rType === 'month') d.setMonth(d.getMonth() + i); else d.setFullYear(d.getFullYear() + i);
                 const targetDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
                 await addDoc(collection(db, "family_ledger_records"), { ...data, date: targetDate, dueDate: targetDate, groupId: groupId, createdAt: serverTimestamp() });
             }
@@ -941,8 +718,7 @@ window.toggleMainCount = () => { document.getElementById('main-count-container')
         showToast("✅ 已成功儲存！");
         document.getElementById(`${prefix}-amount`).value = ''; document.getElementById(`${prefix}-item`).value = '';
         if (isExpected) { document.getElementById('main-repeat-type').value = "single"; document.getElementById('main-count-container').style.display = "none"; }
-        document.getElementById(`form-${prefix}-card`).classList.add('hidden'); 
-        window.scrollTo({ top: 0, behavior: 'smooth' }); 
+        document.getElementById(`form-${prefix}-card`).classList.add('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' }); 
     }
   };
 
@@ -956,187 +732,72 @@ window.toggleMainCount = () => { document.getElementById('main-count-container')
                   let yy = parseInt(cols[0].trim()); if (yy < 1000) yy += 1911; 
                   let mm = String(parseInt(cols[1].trim())).padStart(2, '0'); let dd = String(parseInt(cols[2].trim())).padStart(2, '0');
                   const dateStr = `${yy}-${mm}-${dd}`; const category = cols[3].trim(); const item = cols[4].trim(); 
-                  
-                  let amountStr = cols[5] ? cols[5].replace(/,/g, '').trim() : '';
-                  let amount = amountStr === '' ? 0 : parseFloat(amountStr);
-                  
-                  if (item && !isNaN(amount) && amount >= 0) { 
-                      await addDoc(collection(db, "family_ledger_records"), { type: 'expense', date: dateStr, dueDate: dateStr, amount: amount, item: item, category: category, method: '', isExpected: true, createdAt: serverTimestamp() }); 
-                      successCount++; 
-                  }
+                  let amountStr = cols[5] ? cols[5].replace(/,/g, '').trim() : ''; let amount = amountStr === '' ? 0 : parseFloat(amountStr);
+                  if (item && !isNaN(amount) && amount >= 0) { await addDoc(collection(db, "family_ledger_records"), { type: 'expense', date: dateStr, dueDate: dateStr, amount: amount, item: item, category: category, method: '', isExpected: true, createdAt: serverTimestamp() }); successCount++; }
               }
           }
           showToast(`✅ 成功匯入 ${successCount} 筆待繳帳單！`); document.getElementById('bulk-import-text').value = ''; window.switchTab('expected'); 
       });
   };
 
-  // 記錄目前準備要結清的項目 ID
   let currentSettleId = null;
-
   window.settleExpected = (id, item, amount, savedMethod) => {
-      currentSettleId = id;
-      document.getElementById('settle-title').innerText = `結清：「${item}」`;
-      
-      // 1. 預設日期為今日 (考量到時區，使用本地時間格式化)
-      const d = new Date();
-      const localToday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      document.getElementById('settle-date').value = localToday;
-      
-      // 2. 預設金額為原設定的金額
-      document.getElementById('settle-amount').value = amount;
-      
-      // 3. 預設付款方式，並載入所有可選方式
-      const methodSelect = document.getElementById('settle-method');
-      methodSelect.innerHTML = (sharedSettings.expMethods||[]).map(v => `<option value="${v}">${v}</option>`).join('');
-      const defaultMethod = savedMethod || (sharedSettings.expMethods ? sharedSettings.expMethods[0] : '現金');
-      methodSelect.value = defaultMethod;
-      
-      // 顯示 Modal
+      currentSettleId = id; document.getElementById('settle-title').innerText = `結清：「${item}」`;
+      const d = new Date(); const localToday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      document.getElementById('settle-date').value = localToday; document.getElementById('settle-amount').value = amount;
+      const methodSelect = document.getElementById('settle-method'); methodSelect.innerHTML = (sharedSettings.expMethods||[]).map(v => `<option value="${v}">${v}</option>`).join('');
+      const defaultMethod = savedMethod || (sharedSettings.expMethods ? sharedSettings.expMethods[0] : '現金'); methodSelect.value = defaultMethod;
       document.getElementById('settle-modal').classList.add('show');
   };
-
-  // 關閉 Modal 功能
-  window.closeSettleModal = () => {
-      document.getElementById('settle-modal').classList.remove('show');
-      currentSettleId = null;
-  };
-
-  // 確定送出結清資料
+  window.closeSettleModal = () => { document.getElementById('settle-modal').classList.remove('show'); currentSettleId = null; };
   window.confirmSettle = async () => {
-      if (!currentSettleId) return;
-      const newDate = document.getElementById('settle-date').value;
-      const newMethod = document.getElementById('settle-method').value;
-      const newAmount = Number(document.getElementById('settle-amount').value);
-      
-      // 基礎防呆驗證
+      if (!currentSettleId) return; const newDate = document.getElementById('settle-date').value; const newMethod = document.getElementById('settle-method').value; const newAmount = Number(document.getElementById('settle-amount').value);
       if (!newDate || isNaN(newAmount) || newAmount < 0) return showToast("⚠️ 請確認日期與金額填寫正確！");
-
-      // 更新 Firebase 資料庫
-      await updateDoc(doc(db, "family_ledger_records", currentSettleId), { 
-          isExpected: false, 
-          date: newDate, 
-          method: newMethod,
-          amount: newAmount
-      }); 
-      
-      showToast('✅ 已結清並轉入報表！');
-      window.closeSettleModal();
+      await updateDoc(doc(db, "family_ledger_records", currentSettleId), { isExpected: false, date: newDate, method: newMethod, amount: newAmount }); 
+      showToast('✅ 已結清並轉入報表！'); window.closeSettleModal();
   };
+
   window.triggerEdit = (id, drilldownCat = null) => {
       const record = cloudRecords.find(r => r.id === id); if (!record) return; 
-      
-      const activeTabElement = document.querySelector('.tab.active');
-      if(activeTabElement) window.previousTabForEdit = activeTabElement.id.replace('tab-', '');
-      
-      window.previousDrilldownCatForEdit = drilldownCat;
-      if(drilldownCat) window.closeDrilldown(); 
-
+      const activeTabElement = document.querySelector('.tab.active'); if(activeTabElement) window.previousTabForEdit = activeTabElement.id.replace('tab-', '');
+      window.previousDrilldownCatForEdit = drilldownCat; if(drilldownCat) window.closeDrilldown(); 
       currentEditingId = id; let prefix = '';
       if (record.type === 'expense' || record.type === '支出') { prefix = record.isExpected ? 'exp-exp' : 'exp'; window.switchTab(record.isExpected ? 'expected' : 'expense'); } else { prefix = 'inc'; window.switchTab('income'); }
-      
       document.getElementById(`form-${prefix}-card`).classList.remove('hidden'); document.getElementById(`btn-toggle-form-${prefix}`).innerHTML = '➖ 收起表單';
       document.getElementById(`${prefix}-date`).value = record.isExpected ? record.dueDate : record.date; document.getElementById(`${prefix}-amount`).value = record.amount; document.getElementById(`${prefix}-item`).value = record.item;
       if (record.type === 'expense' || record.type === '支出') { document.getElementById(`${prefix}-category`).value = record.category; document.getElementById(`${prefix}-method`).value = record.method || ''; } else { document.getElementById('inc-receiver').value = record.receiver || ''; document.getElementById('inc-payer-input').value = record.payer || ''; document.getElementById('inc-method').value = record.method || ''; }
+      
+      // 💡 優化：編輯待繳單筆時，強制隱藏「批次重複建立」功能防呆
+      if (prefix === 'exp-exp') {
+          const repeatContainer = document.getElementById('main-repeat-container'); if(repeatContainer) repeatContainer.style.display = 'none';
+          const countContainer = document.getElementById('main-count-container'); if(countContainer) countContainer.style.display = 'none';
+      }
+
       const btn = document.getElementById(`btn-submit-${prefix}`); btn.innerText = "🔄 更新修改"; document.getElementById(`form-${prefix}-title`).innerText = "✏️ 編輯模式中..."; document.getElementById(`btn-cancel-${prefix}`).classList.remove("hidden"); window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-// 記錄當前要複製的原始帳單資料
   let currentDuplicateRecord = null;
-
-  // 打開複製專屬視窗
   window.duplicateExpected = (id) => {
-      const record = cloudRecords.find(r => r.id === id); 
-      if (!record) return;
-      currentDuplicateRecord = record;
-
-      // 自動推算「下個月」的日期
-      let d = new Date(record.dueDate || record.date);
-      d.setMonth(d.getMonth() + 1); 
-      let yyyy = d.getFullYear();
-      let mm = String(d.getMonth() + 1).padStart(2, '0');
-      let dd = String(d.getDate()).padStart(2, '0');
-      
-      // 將資料填入彈出視窗
-      document.getElementById('dup-item').value = record.item;
-      document.getElementById('dup-category').value = record.category;
-      document.getElementById('dup-amount').value = record.amount;
-      document.getElementById('dup-date').value = `${yyyy}-${mm}-${dd}`;
-      
-      // 預設為每月產生 12 期
-      document.getElementById('dup-repeat-type').value = "month";
-      document.getElementById('dup-count-container').style.display = "block";
-      document.getElementById('dup-count').value = "12";
-
-      // 顯示視窗
+      const record = cloudRecords.find(r => r.id === id); if (!record) return; currentDuplicateRecord = record;
+      let d = new Date(record.dueDate || record.date); d.setMonth(d.getMonth() + 1); 
+      let yyyy = d.getFullYear(); let mm = String(d.getMonth() + 1).padStart(2, '0'); let dd = String(d.getDate()).padStart(2, '0');
+      document.getElementById('dup-item').value = record.item; document.getElementById('dup-category').value = record.category; document.getElementById('dup-amount').value = record.amount; document.getElementById('dup-date').value = `${yyyy}-${mm}-${dd}`;
+      document.getElementById('dup-repeat-type').value = "month"; document.getElementById('dup-count-container').style.display = "block"; document.getElementById('dup-count').value = "12";
       document.getElementById('duplicate-modal').classList.add('show');
   };
-
-  // 控制是否顯示「期數」欄位
-  window.toggleDupCount = () => {
-      const type = document.getElementById('dup-repeat-type').value;
-      document.getElementById('dup-count-container').style.display = type === 'single' ? 'none' : 'block';
-  };
-
-// 控制主表單是否顯示「期數」欄位
-  window.toggleMainCount = () => {
-      const type = document.getElementById('main-repeat-type').value;
-      document.getElementById('main-count-container').style.display = type === 'single' ? 'none' : 'block';
-  };
-
-  // 關閉複製視窗
-  window.closeDuplicateModal = () => {
-      document.getElementById('duplicate-modal').classList.remove('show');
-      currentDuplicateRecord = null;
-  };
-
-  // 確認並批次建立資料
+  window.closeDuplicateModal = () => { document.getElementById('duplicate-modal').classList.remove('show'); currentDuplicateRecord = null; };
   window.confirmDuplicate = async () => {
       if (!currentDuplicateRecord) return;
-      
-      const amount = Number(document.getElementById('dup-amount').value);
-      const startDateStr = document.getElementById('dup-date').value;
-      const repeatType = document.getElementById('dup-repeat-type').value;
-      const count = repeatType === 'single' ? 1 : Number(document.getElementById('dup-count').value);
-      
-      if (!startDateStr || isNaN(amount) || amount < 0 || isNaN(count) || count < 1) {
-          return showToast("⚠️ 請確認金額與期數填寫正確！");
-      }
-      
-      showToast("⏳ 批次產生中...");
-      let successCount = 0;
-      // 若產生多筆，綁定相同的群組 ID，方便未來一鍵刪除
-      const groupId = repeatType === 'single' ? null : 'group_' + Date.now();
-      let baseDate = new Date(startDateStr);
-      
+      const amount = Number(document.getElementById('dup-amount').value); const startDateStr = document.getElementById('dup-date').value; const repeatType = document.getElementById('dup-repeat-type').value; const count = repeatType === 'single' ? 1 : Number(document.getElementById('dup-count').value);
+      if (!startDateStr || isNaN(amount) || amount < 0 || isNaN(count) || count < 1) return showToast("⚠️ 請確認金額與期數填寫正確！");
+      showToast("⏳ 批次產生中..."); let successCount = 0; const groupId = repeatType === 'single' ? null : 'group_' + Date.now(); let baseDate = new Date(startDateStr);
       for (let i = 0; i < count; i++) {
-          let d = new Date(baseDate);
-          if (repeatType === 'month') d.setMonth(d.getMonth() + i);
-          else if (repeatType === 'year') d.setFullYear(d.getFullYear() + i);
-          
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          const dd = String(d.getDate()).padStart(2, '0');
-          const targetDate = `${yyyy}-${mm}-${dd}`;
-          
-          const newData = {
-              type: currentDuplicateRecord.type,
-              category: currentDuplicateRecord.category,
-              item: currentDuplicateRecord.item,
-              amount: amount,
-              method: currentDuplicateRecord.method || '',
-              date: targetDate,
-              dueDate: targetDate,
-              isExpected: true,
-              createdAt: serverTimestamp()
-          };
-          if (groupId) newData.groupId = groupId;
-          
-          await addDoc(collection(db, "family_ledger_records"), newData);
-          successCount++;
+          let d = new Date(baseDate); if (repeatType === 'month') d.setMonth(d.getMonth() + i); else if (repeatType === 'year') d.setFullYear(d.getFullYear() + i);
+          const targetDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const newData = { type: currentDuplicateRecord.type, category: currentDuplicateRecord.category, item: currentDuplicateRecord.item, amount: amount, method: currentDuplicateRecord.method || '', date: targetDate, dueDate: targetDate, isExpected: true, createdAt: serverTimestamp() };
+          if (groupId) newData.groupId = groupId; await addDoc(collection(db, "family_ledger_records"), newData); successCount++;
       }
-      
-      showToast(`✅ 已成功產生 ${successCount} 筆待繳帳單！`);
-      closeDuplicateModal();
+      showToast(`✅ 已成功產生 ${successCount} 筆待繳帳單！`); closeDuplicateModal();
   };
  
   window.cancelEdit = () => {
@@ -1145,62 +806,30 @@ window.toggleMainCount = () => { document.getElementById('main-count-container')
           let btnText = "儲存"; let bgClass = "btn-expense"; if(prefix === 'exp') { btnText = "儲存支出"; bgClass = "btn-expense"; } if(prefix === 'exp-exp') { btnText = "儲存待繳款項"; bgClass = "btn-expected"; } if(prefix === 'inc') { btnText = "儲存收入"; bgClass = "btn-income"; }
           const btn = document.getElementById(`btn-submit-${prefix}`); btn.innerText = btnText; btn.className = bgClass; document.getElementById(`form-${prefix}-title`).innerText = `新增${btnText.substring(2)}`; document.getElementById(`btn-cancel-${prefix}`).classList.add("hidden"); document.getElementById(`${prefix}-amount`).value = ''; document.getElementById(`${prefix}-item`).value = '';
       });
+      // 💡 優化：取消編輯後，恢復待繳主表單的重複設定欄位
+      const repeatContainer = document.getElementById('main-repeat-container'); if(repeatContainer) repeatContainer.style.display = 'block';
+      const repeatType = document.getElementById('main-repeat-type'); if(repeatType) repeatType.value = 'single';
+      const countContainer = document.getElementById('main-count-container'); if(countContainer) countContainer.style.display = 'none';
 
       if (window.previousTabForEdit) {
-          const targetTab = window.previousTabForEdit;
-          const targetCat = window.previousDrilldownCatForEdit;
-          window.previousTabForEdit = null;
-          window.previousDrilldownCatForEdit = null;
-          window.switchTab(targetTab);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
+          const targetTab = window.previousTabForEdit; const targetCat = window.previousDrilldownCatForEdit; window.previousTabForEdit = null; window.previousDrilldownCatForEdit = null;
+          window.switchTab(targetTab); window.scrollTo({ top: 0, behavior: 'smooth' });
           if (targetCat) { setTimeout(() => { window.openDrilldown(targetCat); }, 300); }
       }
   };
 
-  let targetDeleteId = null;
-  let targetDeleteGroupId = null;
-
+  let targetDeleteId = null; let targetDeleteGroupId = null;
   window.deleteRecord = (id, itemName) => { 
       const record = cloudRecords.find(r => r.id === id);
-      if (record && record.groupId) {
-          // 如果這筆紀錄有 groupId，代表它是批次產生的，彈出專屬視窗
-          targetDeleteId = id;
-          targetDeleteGroupId = record.groupId;
-          document.getElementById('delete-series-modal').classList.add('show');
-      } else {
-          // 一般單筆紀錄，使用原本的普通確認框
-          confirmAction(`刪除紀錄`, `確定要刪除「${itemName}」嗎？\n刪除後無法復原。`, '#e53935', async () => { 
-              await deleteDoc(doc(db, "family_ledger_records", id)); 
-              showToast("🗑️ 已成功刪除！"); 
-          }); 
-      }
+      if (record && record.groupId) { targetDeleteId = id; targetDeleteGroupId = record.groupId; document.getElementById('delete-series-modal').classList.add('show'); } 
+      else { confirmAction(`刪除紀錄`, `確定要刪除「${itemName}」嗎？\n刪除後無法復原。`, '#e53935', async () => { await deleteDoc(doc(db, "family_ledger_records", id)); showToast("🗑️ 已成功刪除！"); }); }
   };
-
-  window.closeDeleteSeries = () => {
-      document.getElementById('delete-series-modal').classList.remove('show');
-      targetDeleteId = null;
-      targetDeleteGroupId = null;
-  };
-
+  window.closeDeleteSeries = () => { document.getElementById('delete-series-modal').classList.remove('show'); targetDeleteId = null; targetDeleteGroupId = null; };
   window.executeDeleteSeries = async (mode) => {
-      document.getElementById('delete-series-modal').classList.remove('show');
-      if (!targetDeleteId) return;
-      
-      showToast("⏳ 刪除中...");
-      if (mode === 'single') {
-          // 只刪這筆
-          await deleteDoc(doc(db, "family_ledger_records", targetDeleteId));
-          showToast("🗑️ 已成功刪除單筆紀錄！");
-      } else if (mode === 'all') {
-          // 找出同個群組的「未結清」紀錄一起刪掉
-          const groupRecords = cloudRecords.filter(r => r.groupId === targetDeleteGroupId && r.isExpected);
-          for (let r of groupRecords) {
-              await deleteDoc(doc(db, "family_ledger_records", r.id));
-          }
-          showToast(`🗑️ 已成功刪除 ${groupRecords.length} 筆系列紀錄！`);
-      }
-      targetDeleteId = null;
-      targetDeleteGroupId = null;
+      document.getElementById('delete-series-modal').classList.remove('show'); if (!targetDeleteId) return; showToast("⏳ 刪除中...");
+      if (mode === 'single') { await deleteDoc(doc(db, "family_ledger_records", targetDeleteId)); showToast("🗑️ 已成功刪除單筆紀錄！"); } 
+      else if (mode === 'all') { const groupRecords = cloudRecords.filter(r => r.groupId === targetDeleteGroupId && r.isExpected); for (let r of groupRecords) { await deleteDoc(doc(db, "family_ledger_records", r.id)); } showToast(`🗑️ 已成功刪除 ${groupRecords.length} 筆系列紀錄！`); }
+      targetDeleteId = null; targetDeleteGroupId = null;
   };
 
   window.changeReportMonth = (offset) => { reportCurrentMonthDate.setMonth(reportCurrentMonthDate.getMonth() + offset); isReportCustomDate = false; document.getElementById('custom-date-row').classList.add('hidden'); window.updateCharts(); };
@@ -1209,17 +838,11 @@ window.toggleMainCount = () => { document.getElementById('main-count-container')
   
   window.setReportMode = (mode) => { 
       currentChartMode = mode; 
-      document.getElementById('btn-toggle-exp').classList.toggle('active-exp', mode === 'expense'); 
-      document.getElementById('btn-toggle-inc').classList.toggle('active-inc', mode === 'income'); 
-      document.getElementById('btn-toggle-trend').classList.toggle('active-trend', mode === 'trend'); 
-      
+      document.getElementById('btn-toggle-exp').classList.toggle('active-exp', mode === 'expense'); document.getElementById('btn-toggle-inc').classList.toggle('active-inc', mode === 'income'); document.getElementById('btn-toggle-trend').classList.toggle('active-trend', mode === 'trend'); 
       const filterPanel = document.getElementById('stat-filter-panel');
       if (filterPanel) {
-          if (mode === 'trend') {
-              filterPanel.classList.add('hidden');
-          } else {
+          if (mode === 'trend') { filterPanel.classList.add('hidden'); } else {
               filterPanel.classList.remove('hidden'); 
-              // 🧹 切換模式時，強制將下拉選單歸零，避免支出/收入的條件混淆
               if(document.getElementById('filter-category')) document.getElementById('filter-category').value = '全部';
               if(document.getElementById('filter-person')) document.getElementById('filter-person').value = '全部';
               if(document.getElementById('filter-method')) document.getElementById('filter-method').value = '全部';
@@ -1229,159 +852,97 @@ window.toggleMainCount = () => { document.getElementById('main-count-container')
       window.updateCharts(); 
   };
 
-window.updateCharts = () => {
-    if(!google.visualization) return;
-    
-    // 🌟 新增邏輯：每次更新圖表前，掃描資料庫中「所有出現過」的自訂欄位，動態加入下拉選單
-    if (currentChartMode !== 'trend') {
-        const selCat = document.getElementById('filter-category');
-        const selPerson = document.getElementById('filter-person');
-        const selMethod = document.getElementById('filter-method');
-        
-        if (selCat && selPerson && selMethod) {
-            // 先記住使用者目前選了什麼 (避免重新整理時跳掉)
-            const currentCat = selCat.value;
-            const currentPerson = selPerson.value;
-            const currentMethod = selMethod.value;
+  window.updateCharts = () => {
+      if(!google.visualization) return;
+      if (currentChartMode !== 'trend') {
+          const selCat = document.getElementById('filter-category'); const selPerson = document.getElementById('filter-person'); const selMethod = document.getElementById('filter-method');
+          if (selCat && selPerson && selMethod) {
+              const currentCat = selCat.value; const currentPerson = selPerson.value; const currentMethod = selMethod.value;
+              const expCats = new Set(sharedSettings.expCategories || []); const expMethods = new Set(sharedSettings.expMethods || []); const incMethods = new Set(sharedSettings.incMethods || []); const incReceivers = new Set(sharedSettings.incReceivers || []); const incPayers = new Set(sharedSettings.incPayers || []); const persons = new Set([...(sharedSettings.expPayers || []), ...(sharedSettings.incReceivers || [])]);
+              cloudRecords.forEach(r => {
+                  if (r.method) { if (r.type === 'expense' || r.type === '支出') expMethods.add(r.method); else incMethods.add(r.method); }
+                  if (r.type === 'expense' || r.type === '支出') { if (r.category && r.category !== '分類' && r.category !== '卡費') expCats.add(r.category); if (r.payer) persons.add(r.payer); } else if (r.type === 'income' || r.type === '收入') { if (r.receiver) incReceivers.add(r.receiver); if (r.payer) incPayers.add(r.payer); }
+              });
+              if (currentChartMode === 'expense') {
+                  selCat.innerHTML = `<option value="全部">所有分類</option>` + [...expCats].map(c => `<option value="${c}">${emojiMap[c] || c}</option>`).join('') + `<option value="卡費">💳 卡費</option>`;
+                  selPerson.innerHTML = `<option value="全部">所有成員</option>` + [...persons].map(p => `<option value="${p}">👤 ${p}</option>`).join('');
+                  selMethod.innerHTML = `<option value="全部">所有支出方式</option>` + [...expMethods].map(m => `<option value="${m}">💳 ${m}</option>`).join('');
+              } else if (currentChartMode === 'income') {
+                  selCat.innerHTML = `<option value="全部">所有收款人</option>` + [...incReceivers].map(r => `<option value="${r}">👤 ${r}</option>`).join('');
+                  selPerson.innerHTML = `<option value="全部">所有來源</option>` + [...incPayers].map(p => `<option value="${p}">🏢 ${p}</option>`).join('');
+                  selMethod.innerHTML = `<option value="全部">所有收入方式</option>` + [...incMethods].map(m => `<option value="${m}">💳 ${m}</option>`).join('');
+              }
+              if ([...selCat.options].some(o => o.value === currentCat)) selCat.value = currentCat; else selCat.value = '全部';
+              if ([...selPerson.options].some(o => o.value === currentPerson)) selPerson.value = currentPerson; else selPerson.value = '全部';
+              if ([...selMethod.options].some(o => o.value === currentMethod)) selMethod.value = currentMethod; else selMethod.value = '全部';
+          }
+      }
 
-            // 準備 Set 來收集不重複的值 (預設先放入設定檔的基本選項)
-            const expCats = new Set(sharedSettings.expCategories || []);
-            const expMethods = new Set(sharedSettings.expMethods || []);
-            const incMethods = new Set(sharedSettings.incMethods || []);
-            const incReceivers = new Set(sharedSettings.incReceivers || []);
-            const incPayers = new Set(sharedSettings.incPayers || []);
-            const persons = new Set([...(sharedSettings.expPayers || []), ...(sharedSettings.incReceivers || [])]);
+      const filterPanel = document.getElementById('stat-filter-panel');
+      if (filterPanel) { if (currentChartMode === 'expense' || currentChartMode === 'income') { filterPanel.classList.remove('hidden'); } else { filterPanel.classList.add('hidden'); } }
 
-            // 🔍 掃描所有歷史紀錄，把「自行輸入」的新內容加進去
-            cloudRecords.forEach(r => {
-                if (r.method) {
-                    if (r.type === 'expense' || r.type === '支出') expMethods.add(r.method);
-                    else incMethods.add(r.method);
-                }
-                if (r.type === 'expense' || r.type === '支出') {
-                    if (r.category && r.category !== '分類' && r.category !== '卡費') expCats.add(r.category);
-                    if (r.payer) persons.add(r.payer);
-                } else if (r.type === 'income' || r.type === '收入') {
-                    if (r.receiver) incReceivers.add(r.receiver);
-                    if (r.payer) incPayers.add(r.payer);
-                }
-            });
+      let start, end;
+      if (isReportCustomDate) { start = document.getElementById('stat-start').value; end = document.getElementById('stat-end').value; document.getElementById('report-month-display').innerText = "自訂區間"; } 
+      else { const y = reportCurrentMonthDate.getFullYear(); const m = String(reportCurrentMonthDate.getMonth() + 1).padStart(2, '0'); start = `${y}-${m}-01`; const lastDay = new Date(y, reportCurrentMonthDate.getMonth() + 1, 0).getDate(); end = `${y}-${m}-${String(lastDay).padStart(2, '0')}`; document.getElementById('report-month-display').innerText = `${y}年 ${reportCurrentMonthDate.getMonth() + 1}月`; }
 
-            // 根據當前模式重新產生下拉選單 HTML
-            if (currentChartMode === 'expense') {
-                selCat.innerHTML = `<option value="全部">所有分類</option>` + [...expCats].map(c => `<option value="${c}">${emojiMap[c] || c}</option>`).join('') + `<option value="卡費">💳 卡費</option>`;
-                selPerson.innerHTML = `<option value="全部">所有成員</option>` + [...persons].map(p => `<option value="${p}">👤 ${p}</option>`).join('');
-                // 📝 改這裡：所有方式 -> 所有支出方式
-                selMethod.innerHTML = `<option value="全部">所有支出方式</option>` + [...expMethods].map(m => `<option value="${m}">💳 ${m}</option>`).join('');
-            } else if (currentChartMode === 'income') {
-                selCat.innerHTML = `<option value="全部">所有收款人</option>` + [...incReceivers].map(r => `<option value="${r}">👤 ${r}</option>`).join('');
-                selPerson.innerHTML = `<option value="全部">所有來源</option>` + [...incPayers].map(p => `<option value="${p}">🏢 ${p}</option>`).join('');
-                // 📝 改這裡：所有方式 -> 所有收入方式
-                selMethod.innerHTML = `<option value="全部">所有收入方式</option>` + [...incMethods].map(m => `<option value="${m}">💳 ${m}</option>`).join('');
-            }
+      const mainView = document.getElementById('report-view-main'); const trendView = document.getElementById('report-view-trend');
+      if (currentChartMode === 'trend') { mainView.classList.add('hidden'); trendView.classList.remove('hidden'); drawTrendChart(); return; } else { mainView.classList.remove('hidden'); trendView.classList.add('hidden'); }
 
-            // 恢復剛剛選擇的選項 (如果原本的選項還在的話)
-            if ([...selCat.options].some(o => o.value === currentCat)) selCat.value = currentCat; else selCat.value = '全部';
-            if ([...selPerson.options].some(o => o.value === currentPerson)) selPerson.value = currentPerson; else selPerson.value = '全部';
-            if ([...selMethod.options].some(o => o.value === currentMethod)) selMethod.value = currentMethod; else selMethod.value = '全部';
-        }
-    }
+      const keyword = document.getElementById('stat-keyword').value.trim().toLowerCase(); const fCat = document.getElementById('filter-category').value; const fPerson = document.getElementById('filter-person').value; const fMethod = document.getElementById('filter-method').value;
 
-    // --- 原本的面板與時間過濾邏輯 ---
-    const filterPanel = document.getElementById('stat-filter-panel');
-    if (filterPanel) {
-        if (currentChartMode === 'expense' || currentChartMode === 'income') { filterPanel.classList.remove('hidden'); } 
-        else { filterPanel.classList.add('hidden'); }
-    }
+      let filtered = cloudRecords.filter(r => {
+          if (!(r.date >= start && r.date <= end && r.category !== '分類' && r.category !== '卡費' && !r.isExpected)) return false;
+          if (currentChartMode === 'expense') {
+              if (r.type !== 'expense' && r.type !== '支出') return false; 
+              if (fCat !== '全部' && r.category !== fCat) return false;     
+              if (fPerson !== '全部' && r.payer !== fPerson) return false;   
+              if (fMethod !== '全部' && r.method !== fMethod) return false;  
+              if (keyword) { const textToSearch = [r.item, r.category, r.payer, r.method].filter(Boolean).join(' | ').toLowerCase(); if (!textToSearch.includes(keyword)) return false; }
+              return true;
+          } else if (currentChartMode === 'income') {
+              if (r.type !== 'income' && r.type !== '收入') return false; 
+              if (fCat !== '全部' && r.receiver !== fCat) return false;     
+              if (fPerson !== '全部' && r.payer !== fPerson) return false;  
+              if (fMethod !== '全部' && r.method !== fMethod) return false; 
+              if (keyword) { const textToSearch = [r.item, r.receiver, r.payer, r.method].filter(Boolean).join(' | ').toLowerCase(); if (!textToSearch.includes(keyword)) return false; }
+              return true;
+          }
+          return false;
+      });
+      
+      let totalAmount = 0; let aggregatedMap = {};
+      filtered.forEach(r => { if(currentChartMode === 'expense') { totalAmount += r.amount; aggregatedMap[r.category] = (aggregatedMap[r.category] || 0) + r.amount; } else if (currentChartMode === 'income') { totalAmount += r.amount; aggregatedMap[r.receiver] = (aggregatedMap[r.receiver] || 0) + r.amount; } });
 
-    let start, end;
-    if (isReportCustomDate) { 
-        start = document.getElementById('stat-start').value; end = document.getElementById('stat-end').value; document.getElementById('report-month-display').innerText = "自訂區間";
-    } else { 
-        const y = reportCurrentMonthDate.getFullYear(); const m = String(reportCurrentMonthDate.getMonth() + 1).padStart(2, '0'); start = `${y}-${m}-01`; const lastDay = new Date(y, reportCurrentMonthDate.getMonth() + 1, 0).getDate(); end = `${y}-${m}-${String(lastDay).padStart(2, '0')}`; document.getElementById('report-month-display').innerText = `${y}年 ${reportCurrentMonthDate.getMonth() + 1}月`; 
-    }
+      const totalBox = document.getElementById('big-total-container'); const totalLabel = document.getElementById('big-total-label'); const totalVal = document.getElementById('big-total-val');
+      if (currentChartMode === 'expense') { totalBox.style.background = '#ffebee'; totalLabel.innerText = "總支出"; totalVal.innerText = `-$${totalAmount.toLocaleString()}`; totalVal.className = "big-total-val val-expense"; } else { totalBox.style.background = '#e8f5e9'; totalLabel.innerText = "總收入"; totalVal.innerText = `+$${totalAmount.toLocaleString()}`; totalVal.className = "big-total-val val-income"; }
 
-    const mainView = document.getElementById('report-view-main'); const trendView = document.getElementById('report-view-trend');
-    if (currentChartMode === 'trend') { mainView.classList.add('hidden'); trendView.classList.remove('hidden'); drawTrendChart(); return; } 
-    else { mainView.classList.remove('hidden'); trendView.classList.add('hidden'); }
+      const pieArr = [['項目', '金額']]; const sliceColors = []; const sortedAgg = Object.entries(aggregatedMap).sort((a,b)=>b[1]-a[1]);
+      sortedAgg.forEach(([k,v]) => { pieArr.push([k, v]); if(currentChartMode === 'expense') sliceColors.push(getColor(k)); else sliceColors.push(incColorMap[k] || '#43a047'); });
 
-    const keyword = document.getElementById('stat-keyword').value.trim().toLowerCase();
-    const fCat = document.getElementById('filter-category').value;
-    const fPerson = document.getElementById('filter-person').value;
-    const fMethod = document.getElementById('filter-method').value;
+      document.getElementById('top_chart_div').innerHTML = '';
+      if (pieArr.length > 1) {
+          const dataTable = google.visualization.arrayToDataTable(pieArr);
+          pieChartObj = new google.visualization.PieChart(document.getElementById('top_chart_div'));
+          google.visualization.events.addListener(pieChartObj, 'select', function() { const selection = pieChartObj.getSelection(); if (selection.length > 0) { const catName = dataTable.getValue(selection[0].row, 0); window.openDrilldown(catName); pieChartObj.setSelection([]); } });
+          pieChartObj.draw(dataTable, { pieHole: 0.5, colors: sliceColors, legend: 'none', chartArea: { left: '10%', top: 10, width: '80%', height: '90%' }, sliceVisibilityThreshold: 0, tooltip: { trigger: 'none' } });
+      }
 
-    // --- 完美分流過濾 (保留上一步的成果) ---
-    let filtered = cloudRecords.filter(r => {
-        if (!(r.date >= start && r.date <= end && r.category !== '分類' && r.category !== '卡費' && !r.isExpected)) return false;
-        
-        if (currentChartMode === 'expense') {
-            if (r.type !== 'expense' && r.type !== '支出') return false; 
-            if (fCat !== '全部' && r.category !== fCat) return false;     
-            if (fPerson !== '全部' && r.payer !== fPerson) return false;   
-            if (fMethod !== '全部' && r.method !== fMethod) return false;  
-            if (keyword) { 
-                const textToSearch = [r.item, r.category, r.payer, r.method].filter(Boolean).join(' | ').toLowerCase(); 
-                if (!textToSearch.includes(keyword)) return false; 
-            }
-            return true;
-        } else if (currentChartMode === 'income') {
-            if (r.type !== 'income' && r.type !== '收入') return false; 
-            if (fCat !== '全部' && r.receiver !== fCat) return false;     
-            if (fPerson !== '全部' && r.payer !== fPerson) return false;  
-            if (fMethod !== '全部' && r.method !== fMethod) return false; 
-            if (keyword) { 
-                const textToSearch = [r.item, r.receiver, r.payer, r.method].filter(Boolean).join(' | ').toLowerCase(); 
-                if (!textToSearch.includes(keyword)) return false; 
-            }
-            return true;
-        }
-        return false;
-    });
-    
-    // --- 畫圖與更新總計 ---
-    let totalAmount = 0; let aggregatedMap = {};
-    filtered.forEach(r => {
-        if(currentChartMode === 'expense') { totalAmount += r.amount; aggregatedMap[r.category] = (aggregatedMap[r.category] || 0) + r.amount; } 
-        else if (currentChartMode === 'income') { totalAmount += r.amount; aggregatedMap[r.receiver] = (aggregatedMap[r.receiver] || 0) + r.amount; }
-    });
-
-    const totalBox = document.getElementById('big-total-container'); const totalLabel = document.getElementById('big-total-label'); const totalVal = document.getElementById('big-total-val');
-    
-    if (currentChartMode === 'expense') { 
-        totalBox.style.background = '#ffebee'; totalLabel.innerText = "總支出"; totalVal.innerText = `-$${totalAmount.toLocaleString()}`; totalVal.className = "big-total-val val-expense";
-    } else { 
-        totalBox.style.background = '#e8f5e9'; totalLabel.innerText = "總收入"; totalVal.innerText = `+$${totalAmount.toLocaleString()}`; totalVal.className = "big-total-val val-income"; 
-    }
-
-    const pieArr = [['項目', '金額']]; const sliceColors = []; const sortedAgg = Object.entries(aggregatedMap).sort((a,b)=>b[1]-a[1]);
-    sortedAgg.forEach(([k,v]) => { pieArr.push([k, v]); if(currentChartMode === 'expense') sliceColors.push(getColor(k)); else sliceColors.push(incColorMap[k] || '#43a047'); });
-
-    document.getElementById('top_chart_div').innerHTML = '';
-    if (pieArr.length > 1) {
-        const dataTable = google.visualization.arrayToDataTable(pieArr);
-        pieChartObj = new google.visualization.PieChart(document.getElementById('top_chart_div'));
-        google.visualization.events.addListener(pieChartObj, 'select', function() {
-            const selection = pieChartObj.getSelection();
-            if (selection.length > 0) { const catName = dataTable.getValue(selection[0].row, 0); window.openDrilldown(catName); pieChartObj.setSelection([]); }
-        });
-        pieChartObj.draw(dataTable, { pieHole: 0.5, colors: sliceColors, legend: 'none', chartArea: { left: '10%', top: 10, width: '80%', height: '90%' }, sliceVisibilityThreshold: 0, tooltip: { trigger: 'none' } });
-    }
-
-    let leaderboardHtml = '';
-    sortedAgg.forEach(([cat, amount], idx) => {
-        const color = sliceColors[idx]; const pct = totalAmount > 0 ? ((amount / totalAmount) * 100).toFixed(1) : 0;
-        const displayCat = currentChartMode === 'expense' ? (emojiMap[cat] || cat) : cat;
-        leaderboardHtml += `<div class="leaderboard-item" onclick="openDrilldown('${cat}')"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="font-size:15px; font-weight:bold; color:#444;">${displayCat}</span><span style="font-weight:bold;">$${amount.toLocaleString()} <span style="font-size:12px;color:#888;">(${pct}%)</span></span></div><div class="progress-bg"><div class="progress-fill" style="width:${pct}%; background-color:${color};"></div></div></div>`;
-    });
-    
-    if(sortedAgg.length === 0) {
-        let msg = "這個區間沒有紀錄哦！";
-        if(keyword || fCat !== '全部' || fPerson !== '全部' || fMethod !== '全部') msg = "找不到符合條件的紀錄。";
-        else { const y = reportCurrentMonthDate.getFullYear(); const m = reportCurrentMonthDate.getMonth() + 1; msg = `目前顯示的是 ${y}年${m}月。<br><span style="font-size:12px;color:#bbb;">(未結清的待繳帳單不會顯示在報表中)</span>`; }
-        leaderboardHtml = `<div style="text-align:center;color:#999;padding:20px;line-height:1.6;">${msg}</div>`;
-    }
-    document.getElementById('leaderboard-container').innerHTML = leaderboardHtml;
+      let leaderboardHtml = '';
+      sortedAgg.forEach(([cat, amount], idx) => {
+          const color = sliceColors[idx]; const pct = totalAmount > 0 ? ((amount / totalAmount) * 100).toFixed(1) : 0;
+          const displayCat = currentChartMode === 'expense' ? (emojiMap[cat] || cat) : cat;
+          leaderboardHtml += `<div class="leaderboard-item" onclick="openDrilldown('${cat}')"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span style="font-size:15px; font-weight:bold; color:#444;">${displayCat}</span><span style="font-weight:bold;">$${amount.toLocaleString()} <span style="font-size:12px;color:#888;">(${pct}%)</span></span></div><div class="progress-bg"><div class="progress-fill" style="width:${pct}%; background-color:${color};"></div></div></div>`;
+      });
+      
+      if(sortedAgg.length === 0) {
+          let msg = "這個區間沒有紀錄哦！";
+          if(keyword || fCat !== '全部' || fPerson !== '全部' || fMethod !== '全部') msg = "找不到符合條件的紀錄。";
+          else { const y = reportCurrentMonthDate.getFullYear(); const m = reportCurrentMonthDate.getMonth() + 1; msg = `目前顯示的是 ${y}年${m}月。<br><span style="font-size:12px;color:#bbb;">(未結清的待繳帳單不會顯示在報表中)</span>`; }
+          leaderboardHtml = `<div style="text-align:center;color:#999;padding:20px;line-height:1.6;">${msg}</div>`;
+      }
+      document.getElementById('leaderboard-container').innerHTML = leaderboardHtml;
   };
+
   function drawTrendChart() {
       const trendContainer = document.getElementById('trend_chart_div'); trendContainer.innerHTML = '';
       const months = []; let d = new Date(reportCurrentMonthDate); d.setMonth(d.getMonth() - 5);
@@ -1404,7 +965,6 @@ window.updateCharts = () => {
       document.getElementById(`tab-${n}`).classList.add('active'); 
       if(n==='stats') window.updateCharts(); 
       if(n==='expected') window.renderLists(); 
-      
       const filterPanel = document.getElementById('stat-filter-panel');
       if(filterPanel && n !== 'stats') filterPanel.classList.add('hidden');
   };
@@ -1453,7 +1013,7 @@ window.updateCharts = () => {
 
   function refreshAll() {
     if(!sharedSettings.expCategories) return;
-    const cats = sharedSettings.expCategories || ['食', '衣', '住', '行', '育', '樂', '貸款', '捐贈', '醫藥', '保險', '稅金', '工作'];
+    const cats = sharedSettings.expCategories || ['食', '衣', '住', '行', '育', '樂', '貸款', '捐贈', '醫 নায়藥', '保險', '稅金', '工作'];
     const catHtml = cats.map(c => `<option value="${c}">${emojiMap[c] || c}</option>`).join('');
     document.getElementById('exp-category').innerHTML = catHtml; document.getElementById('exp-exp-category').innerHTML = catHtml + `<option value="卡費">💳 卡費</option>`;
     
@@ -1475,24 +1035,17 @@ window.updateCharts = () => {
       if(v && !(sharedSettings[k]||[]).includes(v)) { 
           if(!sharedSettings[k]) sharedSettings[k] = []; 
           sharedSettings[k].push(v); 
-          
-          // 重新宣告 settingsRef，讓程式找得到資料庫位置
           const settingsRef = doc(db, "family_ledger_settings", "shared_config");
           await setDoc(settingsRef, sharedSettings); 
-          
-          showToast("✅ 已新增設定！"); 
-          document.getElementById(id).value = ''; // 優化：新增成功後自動清空輸入框
+          showToast("✅ 已新增設定！"); document.getElementById(id).value = ''; 
       } 
   };
 
   window.removeSetting = async (k, i) => { 
       if(sharedSettings[k]){ 
           sharedSettings[k].splice(i, 1); 
-          
-          // 重新宣告 settingsRef，讓程式找得到資料庫位置
           const settingsRef = doc(db, "family_ledger_settings", "shared_config");
           await setDoc(settingsRef, sharedSettings); 
-          
           showToast("🗑️ 已移除設定！"); 
       } 
   };
@@ -1505,21 +1058,15 @@ window.updateCharts = () => {
   document.getElementById('stat-start').value = `${today.getFullYear()}-01-01`; document.getElementById('stat-end').value = todayStr;
   document.getElementById('exp-list-start').value = tmStr; document.getElementById('exp-list-end').value = nmStr;
   
-  // --- 自動產生最後更新時間當作版本號 ---
   const updateVersionDisplay = () => {
       const lastMod = new Date(document.lastModified);
-      const yy = lastMod.getFullYear();
-      const mm = String(lastMod.getMonth() + 1).padStart(2, '0');
-      const dd = String(lastMod.getDate()).padStart(2, '0');
-      const hh = String(lastMod.getHours()).padStart(2, '0');
-      const min = String(lastMod.getMinutes()).padStart(2, '0');
+      const yy = lastMod.getFullYear(); const mm = String(lastMod.getMonth() + 1).padStart(2, '0'); const dd = String(lastMod.getDate()).padStart(2, '0');
+      const hh = String(lastMod.getHours()).padStart(2, '0'); const min = String(lastMod.getMinutes()).padStart(2, '0');
       const versionText = `系統最後更新：${yy}.${mm}.${dd} ${hh}:${min}`;
-      
       if(document.getElementById('app-version-1')) document.getElementById('app-version-1').innerText = versionText;
       if(document.getElementById('app-version-2')) document.getElementById('app-version-2').innerText = versionText;
   };
   updateVersionDisplay();
-  // ------------------------------------
 
   document.addEventListener('DOMContentLoaded', () => { window.setReportMode('expense'); });
 </script>
