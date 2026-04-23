@@ -185,7 +185,15 @@
           <input type="date" id="exp-exp-date">
         </div>
         <div><label>分類</label><select id="exp-exp-category" onchange="updateHistoryDatalists()"></select></div>
-<div>
+        <div class="span-2-cols">
+          <label>待繳項目 <span style="font-weight:normal; font-size:10px; color:#0288d1; margin-left:4px;">(自動歸類)</span></label>
+          <input type="text" id="exp-exp-item" list="exp-exp-item-options" placeholder="名稱" oninput="autoClassify('exp-exp')">
+          <datalist id="exp-exp-item-options"></datalist>
+        </div>
+        <div><label>預估金額</label><input type="number" id="exp-exp-amount" inputmode="numeric" placeholder="0"></div>
+        <div><label>付款方式</label><select id="exp-exp-method"></select></div>
+        
+        <div>
           <label>🔁 重複設定</label>
           <select id="main-repeat-type" onchange="toggleMainCount()" style="border: 1px solid #ffb74d; background: #fff8e1; color: #e65100; font-weight: bold;">
             <option value="single">只產生單筆</option>
@@ -201,6 +209,7 @@
       <button id="btn-submit-exp-exp" class="btn-expected" onclick="saveData('expected')">儲存待繳</button>
       <button id="btn-cancel-exp-exp" class="btn-setting hidden" style="margin-top:10px; width:100%; background:#757575;" onclick="cancelEdit()">❌ 取消</button>
     </div>
+    
     <div class="card">
       <h3 style="border-left-color:#f57c00;">📝 待繳清單</h3>
       <div class="row" style="background:#fafafa; padding:10px; border-radius:8px;">
@@ -467,6 +476,39 @@
     <div class="modal-btn-group" style="margin-top: 25px;">
       <button onclick="closeDuplicateModal()" style="background:#e0e0e0; color:#333; flex:1; padding:12px; border-radius:8px; font-weight:bold;">取消</button>
       <button onclick="confirmDuplicate()" style="background:#0288d1; color:white; flex:1.5; padding:12px; border-radius:8px; font-weight:bold;">✅ 批次建立</button>
+    </div>
+  </div>
+</div>
+
+<div id="duplicate-modal" class="modal-overlay" style="z-index: 2600;">
+  <div class="modal-content" style="text-align: left; max-width: 320px; padding: 25px 20px;">
+    <h3 style="border:none; padding:0; text-align:center; font-size:18px; margin-bottom:20px;">建立未來的待繳帳單</h3>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div><label>帳單名稱 (不可改)</label><input type="text" id="dup-item" readonly style="background:#f5f5f5; color:#888;"></div>
+      <div><label>支出分類 (不可改)</label><input type="text" id="dup-category" readonly style="background:#f5f5f5; color:#888;"></div>
+      <div><label>💰 繳款金額 (可修改)</label><input type="number" id="dup-amount" inputmode="numeric" style="border:1px solid #ffb74d;"></div>
+      <div><label>📅 下期到期日</label><input type="date" id="dup-date" style="border:1px solid #ffb74d;"></div>
+      <div><label>🔁 重複設定</label>
+        <select id="dup-repeat-type" onchange="toggleDupCount()" style="border:1px solid #ffb74d;">
+          <option value="month">每月自動重複產生</option>
+          <option value="year">每年自動重複產生</option>
+          <option value="single">只產生單筆</option>
+        </select>
+      </div>
+      <div id="dup-count-container"><label>🔢 產生期數</label><input type="number" id="dup-count" value="12" inputmode="numeric" style="border:1px solid #ffb74d;"></div>
+    </div>
+    <div class="modal-btn-group"><button onclick="closeDuplicateModal()" style="background:#e0e0e0; flex:1;">取消</button><button onclick="confirmDuplicate()" style="background:#0288d1; color:white; flex:1.5;">✅ 批次建立</button></div>
+  </div>
+</div>
+
+<div id="delete-series-modal" class="modal-overlay" style="z-index: 2600;">
+  <div class="modal-content">
+    <h3 style="border:none; padding:0; text-align:center; font-size:18px; margin-bottom:10px;">🗑️ 刪除批次紀錄</h3>
+    <p style="font-size:14px; color:#666; margin-top:0;">這是一組批次產生的紀錄。請問要刪除哪部分？</p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
+      <button onclick="executeDeleteSeries('all')" style="background:#e53935; color:white; padding:12px;">刪除此系列【所有未結清】紀錄</button>
+      <button onclick="executeDeleteSeries('single')" style="background:#f57c00; color:white; padding:12px;">只刪除【這筆】紀錄</button>
+      <button onclick="closeDeleteSeries()" style="background:#e0e0e0; padding:12px;">取消</button>
     </div>
   </div>
 </div>
@@ -850,9 +892,14 @@
     if (foundCat) { const catSelect = document.getElementById(`${prefix}-category`); if(Array.from(catSelect.options).some(opt => opt.value === foundCat)) catSelect.value = foundCat; }
   };
 
+window.toggleMainCount = () => { document.getElementById('main-count-container').style.display = document.getElementById('main-repeat-type').value === 'single' ? 'none' : 'block'; };
+  window.toggleDupCount = () => { document.getElementById('dup-count-container').style.display = document.getElementById('dup-repeat-type').value === 'single' ? 'none' : 'block'; };
+
   window.saveData = async (type) => {
     let prefix = ''; let isExp = false; let isExpected = false;
-    if (type === 'expense') { prefix = 'exp'; isExp = true; } else if (type === 'expected') { prefix = 'exp-exp'; isExp = true; isExpected = true; } else if (type === 'income') { prefix = 'inc'; }
+    if (type === 'expense') { prefix = 'exp'; isExp = true; } 
+    else if (type === 'expected') { prefix = 'exp-exp'; isExp = true; isExpected = true; } 
+    else if (type === 'income') { prefix = 'inc'; }
     
     const amtInput = document.getElementById(`${prefix}-amount`).value;
     const data = { 
@@ -863,7 +910,9 @@
         category: isExp ? document.getElementById(`${prefix}-category`).value : '收入', 
         isExpected: isExpected 
     };
-    if (isExpected) { data.dueDate = document.getElementById(`${prefix}-date`).value; data.method = document.getElementById(`${prefix}-method`).value; } else if (isExp) { data.method = document.getElementById(`${prefix}-method`).value; data.dueDate = null; } else { data.payer = document.getElementById('inc-payer-input').value.trim(); data.receiver = document.getElementById('inc-receiver').value; data.method = document.getElementById('inc-method').value; }
+    if (isExpected) { data.dueDate = data.date; data.method = document.getElementById('exp-exp-method').value; }
+    else if (isExp) { data.method = document.getElementById('exp-method').value; }
+    else { data.payer = document.getElementById('inc-payer-input').value; data.receiver = document.getElementById('inc-receiver').value; data.method = document.getElementById('inc-method').value; }
     
     if(amtInput === '' || !data.item) return showToast("⚠️ 請填寫內容與金額！");
     
@@ -872,50 +921,29 @@
         showToast("✅ 資料已更新！"); 
         window.cancelEdit(); 
     } else { 
-        // 批次產生邏輯
-        let repeatType = "single";
-        let repeatCount = 1;
-        if (isExpected) {
-            repeatType = document.getElementById('main-repeat-type').value;
-            repeatCount = repeatType === 'single' ? 1 : Number(document.getElementById('main-repeat-count').value);
-        }
+        let rType = isExpected ? document.getElementById('main-repeat-type').value : "single";
+        let rCount = rType === 'single' ? 1 : Number(document.getElementById('main-repeat-count').value);
         
-        if (repeatType === "single" || repeatCount <= 1) {
+        if (rType === "single" || rCount <= 1) {
             data.createdAt = serverTimestamp(); 
             await addDoc(collection(db, "family_ledger_records"), data); 
-            showToast("✅ 已成功新增！");
         } else {
-            const groupId = 'group_' + Date.now(); 
-            let baseDate = new Date(data.dueDate);
-            let successCount = 0;
-            
-            showToast("⏳ 批次產生中...");
-            for (let i = 0; i < repeatCount; i++) {
+            const groupId = 'group_' + Date.now();
+            let baseDate = new Date(data.date);
+            for (let i = 0; i < rCount; i++) {
                 let d = new Date(baseDate);
-                if (repeatType === 'month') d.setMonth(d.getMonth() + i);
-                else if (repeatType === 'year') d.setFullYear(d.getFullYear() + i);
-                
-                const yyyy = d.getFullYear();
-                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                const dd = String(d.getDate()).padStart(2, '0');
-                const targetDate = `${yyyy}-${mm}-${dd}`;
-                
-                let docData = { ...data, date: targetDate, dueDate: targetDate, groupId: groupId, createdAt: serverTimestamp() };
-                await addDoc(collection(db, "family_ledger_records"), docData);
-                successCount++;
+                if (rType === 'month') d.setMonth(d.getMonth() + i);
+                else d.setFullYear(d.getFullYear() + i);
+                const targetDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                await addDoc(collection(db, "family_ledger_records"), { ...data, date: targetDate, dueDate: targetDate, groupId: groupId, createdAt: serverTimestamp() });
             }
-            showToast(`✅ 已成功批次產生 ${successCount} 筆待繳！`);
         }
-        
+        showToast("✅ 已成功儲存！");
         document.getElementById(`${prefix}-amount`).value = ''; document.getElementById(`${prefix}-item`).value = '';
-        if (isExpected) {
-            document.getElementById('main-repeat-type').value = "single"; 
-            document.getElementById('main-count-container').style.display = "none";
-        }
+        if (isExpected) { document.getElementById('main-repeat-type').value = "single"; document.getElementById('main-count-container').style.display = "none"; }
         document.getElementById(`form-${prefix}-card`).classList.add('hidden'); 
-        document.getElementById(`btn-toggle-form-${prefix}`).innerHTML = '➕ 展開表單'; 
         window.scrollTo({ top: 0, behavior: 'smooth' }); 
-    } 
+    }
   };
 
   window.bulkImportExpected = async () => {
