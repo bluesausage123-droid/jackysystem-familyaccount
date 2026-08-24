@@ -872,8 +872,13 @@
   window.setQuickDate = (id, offsetDays) => { const d = new Date(); d.setDate(d.getDate() + offsetDays); document.getElementById(id).value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   
   window.shiftDate = (id, offset, unit) => {
-      const input = document.getElementById(id); if (!input.value) return; let d = new Date(input.value);
-      if (unit === 'month') d.setMonth(d.getMonth() + offset); else if (unit === 'year') d.setFullYear(d.getFullYear() + offset);
+      const input = document.getElementById(id); if (!input.value) return;
+      let d = parseLocalDate(input.value);
+      const originalDay = d.getDate();
+      let isMonthOrYearOp = false;
+      if (unit === 'month') { d.setMonth(d.getMonth() + offset); isMonthOrYearOp = true; }
+      else if (unit === 'year') { d.setFullYear(d.getFullYear() + offset); isMonthOrYearOp = true; }
+      if (isMonthOrYearOp && d.getDate() !== originalDay) d.setDate(0);
       input.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
@@ -1468,7 +1473,8 @@
   let currentDuplicateRecord = null;
   window.duplicateExpected = (id) => {
       const record = cloudRecords.find(r => r.id === id); if (!record) return; currentDuplicateRecord = record;
-      let d = parseLocalDate(record.dueDate || record.date); d.setMonth(d.getMonth() + 1);
+      const srcDate = record.dueDate || record.date;
+      let d = computeDateAt(parseLocalDate(srcDate), 'month', 1, 1, 'month');
       let yyyy = d.getFullYear(); let mm = String(d.getMonth() + 1).padStart(2, '0'); let dd = String(d.getDate()).padStart(2, '0');
       document.getElementById('dup-item').value = record.item; document.getElementById('dup-category').value = record.category; document.getElementById('dup-amount').value = record.amount; document.getElementById('dup-date').value = `${yyyy}-${mm}-${dd}`;
       document.getElementById('dup-repeat-type').value = "month"; document.getElementById('dup-count-container').style.display = "block"; document.getElementById('dup-count').value = "12";
@@ -1592,7 +1598,10 @@
       targetDeleteId = null; targetDeleteGroupId = null;
   };
 
-  window.changeReportMonth = (offset) => { reportCurrentMonthDate.setMonth(reportCurrentMonthDate.getMonth() + offset); isReportCustomDate = false; document.getElementById('custom-date-row').classList.add('hidden'); window.updateCharts(); };
+  window.changeReportMonth = (offset) => {
+      reportCurrentMonthDate = new Date(reportCurrentMonthDate.getFullYear(), reportCurrentMonthDate.getMonth() + offset, 1);
+      isReportCustomDate = false; document.getElementById('custom-date-row').classList.add('hidden'); window.updateCharts();
+  };
   window.toggleCustomDate = () => { isReportCustomDate = !isReportCustomDate; const row = document.getElementById('custom-date-row'); if(isReportCustomDate) row.classList.remove('hidden'); else row.classList.add('hidden'); window.updateCharts(); };
   window.applyCustomDate = () => { if(isReportCustomDate) window.updateCharts(); };
   
@@ -1848,8 +1857,10 @@
   };
 
   const today = new Date(); const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  const tm = new Date(today); tm.setMonth(tm.getMonth() - 2); const tmStr = `${tm.getFullYear()}-${String(tm.getMonth()+1).padStart(2,'0')}-${String(tm.getDate()).padStart(2,'0')}`;
-  const nm = new Date(today); nm.setMonth(nm.getMonth() + 1); const nmStr = `${nm.getFullYear()}-${String(nm.getMonth()+1).padStart(2,'0')}-${String(nm.getDate()).padStart(2,'0')}`;
+  const tm = computeDateAt(today, 'month', -2, 1, 'month');
+  const nm = computeDateAt(today, 'month', 1, 1, 'month');
+  const tmStr = `${tm.getFullYear()}-${String(tm.getMonth()+1).padStart(2,'0')}-${String(tm.getDate()).padStart(2,'0')}`;
+  const nmStr = `${nm.getFullYear()}-${String(nm.getMonth()+1).padStart(2,'0')}-${String(nm.getDate()).padStart(2,'0')}`;
 
   document.getElementById('exp-date').value = todayStr; document.getElementById('exp-exp-date').value = todayStr; document.getElementById('inc-date').value = todayStr;
   document.getElementById('stat-start').value = `${today.getFullYear()}-01-01`; document.getElementById('stat-end').value = todayStr;
