@@ -354,13 +354,23 @@
     </div>
 
     <div id="report-view-main">
+        <div class="card" id="report-summary" style="padding:12px;">
+          <div id="summary-range" style="font-size:12px; color:#888; margin-bottom:10px;"></div>
+          <div id="summary-bars"></div>
+        </div>
+
         <div id="stat-filter-panel" class="card" style="background:#f4f9f9; padding: 10px 15px; border: 1px solid #e0f2f1;">
-          <div style="font-size: 13px; font-weight: bold; color: #00897b; margin-bottom: 8px;">🎯 多維度交叉篩選</div>
+          <div id="filter-head" onclick="toggleFilterPanel()" style="font-size: 13px; font-weight: bold; color: #00897b; cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
+            <span>🎯 多維度交叉篩選<span id="filter-badge" style="display:none; margin-left:6px; background:#00897b; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px;"></span></span>
+            <span id="filter-caret">▼</span>
+          </div>
+          <div id="filter-body" class="hidden" style="margin-top:8px;">
           <div class="input-form-grid" style="margin-bottom:0;">
             <div><select id="filter-category" onchange="updateCharts()" style="padding:8px; background:#fff; border:1px solid #b2dfdb;"></select></div>
             <div><select id="filter-person" onchange="updateCharts()" style="padding:8px; background:#fff; border:1px solid #b2dfdb;"></select></div>
             <div><select id="filter-method" onchange="updateCharts()" style="padding:8px; background:#fff; border:1px solid #b2dfdb;"></select></div>
             <div><input type="text" id="stat-keyword" placeholder="🔍 搜尋關鍵字..." oninput="updateCharts()" style="padding:8px; border:1px solid #b2dfdb; background:#fff;"></div>
+          </div>
           </div>
         </div>
 
@@ -1800,8 +1810,167 @@
       window.updateCharts(); 
   };
 
+  // 🆕 收支總覽：把「賺多少、花多少、剩多少」放在報表第一眼看得到的位置。
+  //    排除規則與下方明細一致（待繳未發生、'分類' 佔位值、'卡費' 避免與實際消費重複計算）。
+  //    刻意不套用篩選器——篩選是給下方分類明細用的，總覽必須是該期間的完整收支，
+  //    否則使用者忘了自己開著篩選，會把過濾後的數字當成全部。
+  const sumRange = (start, end) => {
+      let income = 0, expense = 0;
+      cloudRecords.forEach(r => {
+          const dt = r.date;
+          if (!dt || dt < start || dt > end) return;
+          if (r.isExpected) return;
+          if (r.category === '分類' || r.category === '卡費') return;
+          if (r.type === 'expense' || r.type === '支出') expense += r.amount;
+          else if (r.type === 'income' || r.type === '收入') income += r.amount;
+      });
+      return { income, expense };
+  };
+
+  const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
+
+  // 決定「本期」與「拿來比較的上期」。
+  // 關鍵：當月還沒過完時，必須拿上月的同一段日子來比，不能比整月——
+  // 8/1-8/25 對上 7 月整月，支出一定顯示大跌，那是假訊號。
+  const getComparePeriods = () => {
+      const today = new Date();
+      const todayStr = fmtDate(today);
+      if (isReportCustomDate) {
+          const s = document.getElementById('stat-start').value;
+          const e = document.getElementById('stat-end').value;
+          if (!s || !e) return null;
+          const sD = parseLocalDate(s), eD = parseLocalDate(e);
+          const span = Math.round((eD - sD) / 86400000);
+          const prevEnd = new Date(sD); prevEnd.setDate(prevEnd.getDate() - 1);
+          const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate() - span);
+          return { start: s, end: e, prevStart: fmtDate(prevStart), prevEnd: fmtDate(prevEnd),
+                   label: `${s.substring(5)} ~ ${e.substring(5)}`, prevLabel: '前一段同長度期間', partial: false };
+      }
+      const y = reportCurrentMonthDate.getFullYear(), m = reportCurrentMonthDate.getMonth();
+      const isCurrentMonth = (y === today.getFullYear() && m === today.getMonth());
+      const start = `${y}-${String(m+1).padStart(2,'0')}-01`;
+      const lastDay = daysInMonth(y, m);
+      const end = isCurrentMonth ? todayStr : `${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+      // 上個月的同一段：若本月 31 日而上月只有 30 日，就取到上月最後一天
+      const pm = new Date(y, m - 1, 1);
+      const py = pm.getFullYear(), pmm = pm.getMonth();
+      const prevLast = daysInMonth(py, pmm);
+      const endDay = isCurrentMonth ? today.getDate() : lastDay;
+      const prevEndDay = Math.min(endDay, prevLast);
+      const prevStart = `${py}-${String(pmm+1).padStart(2,'0')}-01`;
+      const prevEnd = `${py}-${String(pmm+1).padStart(2,'0')}-${String(prevEndDay).padStart(2,'0')}`;
+      return {
+          start, end, prevStart, prevEnd,
+          label: isCurrentMonth ? `${m+1}月 1-${today.getDate()}日` : `${y}年${m+1}月`,
+          prevLabel: isCurrentMonth ? `${pmm+1}月 1-${prevEndDay}日` : `${py}年${pmm+1}月`,
+          partial: isCurrentMonth
+      };
+  };
+
+  const deltaHtml = (cur, prev, higherIsBetter) => {
+      if (!prev) return '<span style="font-size:11px; color:#bbb;">上期無資料</span>';
+      const pct = ((cur - prev) / prev) * 100;
+      if (Math.abs(pct) < 0.05) return '<span style="font-size:11px; color:#999;">持平</span>';
+      const up = pct > 0;
+      const good = up === higherIsBetter;
+      const color = good ? '#2e7d32' : '#c62828';
+      return `<span style="font-size:11px; font-weight:bold; color:${color};">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
+  };
+
+  // 一次性大額事件（賣房、保險解約）會讓月比完全失真：上個月賣了房，這個月收入就會
+  // 顯示「▼92.7%」，看起來像出了什麼事，其實只是上期有一筆特殊收入。
+  // 找出單筆就佔該期間三成以上的項目，把它標出來當註腳。
+  const findDominantItem = (start, end, wantIncome) => {
+      const rows = cloudRecords.filter(r => {
+          if (!r.date || r.date < start || r.date > end) return false;
+          if (r.isExpected) return false;
+          if (r.category === '分類' || r.category === '卡費') return false;
+          const isInc = (r.type === 'income' || r.type === '收入');
+          return wantIncome ? isInc : (r.type === 'expense' || r.type === '支出');
+      });
+      const total = rows.reduce((s, r) => s + r.amount, 0);
+      if (!total) return null;
+      const max = rows.reduce((a, b) => (b.amount > (a ? a.amount : 0) ? b : a), null);
+      return (max && max.amount / total >= 0.3) ? { item: max.item, amount: max.amount, date: max.date } : null;
+  };
+
+  window.renderSummary = () => {
+      const box = document.getElementById('summary-bars');
+      const rangeEl = document.getElementById('summary-range');
+      if (!box || !rangeEl) return;
+      const P = getComparePeriods();
+      if (!P) { box.innerHTML = ''; rangeEl.innerText = ''; return; }
+      const cur = sumRange(P.start, P.end);
+      const prev = sumRange(P.prevStart, P.prevEnd);
+      const bal = cur.income - cur.expense, prevBal = prev.income - prev.expense;
+      const max = Math.max(cur.income, cur.expense, 1);
+      rangeEl.innerHTML = `${P.label}<span style="color:#bbb;">　對比　</span>${P.prevLabel}`
+          + (P.partial ? '<span style="color:#f57c00;">（本月尚未結束，比的是上月同一段日子）</span>' : '');
+      const bar = (label, val, pct, color, delta) => `
+        <div style="margin-bottom:10px;">
+          <div style="display:flex; align-items:baseline; gap:8px;">
+            <span style="font-size:13px; color:#555; font-weight:bold; flex-shrink:0;">${label}</span>
+            <span style="flex:1; min-width:0;"></span>
+            <span style="font-size:16px; font-weight:bold; color:${color}; white-space:nowrap;">$${val.toLocaleString()}</span>
+            <span style="flex-shrink:0;">${delta}</span>
+          </div>
+          <div style="height:8px; background:#f0f0f0; border-radius:4px; margin-top:4px; overflow:hidden;">
+            <div style="height:100%; width:${pct}%; background:${color}; border-radius:4px;"></div>
+          </div>
+        </div>`;
+      // 只在變化幅度大到會誤導時才提示，平常不要多這一行雜訊
+      const notes = [];
+      const bigChange = (a, b) => b && Math.abs((a - b) / b) >= 0.5;
+      [['收入', true, cur.income, prev.income], ['支出', false, cur.expense, prev.expense]].forEach(([name, isInc, c, pv]) => {
+          if (!bigChange(c, pv)) return;
+          const dPrev = findDominantItem(P.prevStart, P.prevEnd, isInc);
+          const dCur = findDominantItem(P.start, P.end, isInc);
+          if (dPrev) notes.push(`${P.prevLabel}的${name}含單筆「${escapeHtml(dPrev.item)}」$${dPrev.amount.toLocaleString()}`);
+          else if (dCur) notes.push(`本期${name}含單筆「${escapeHtml(dCur.item)}」$${dCur.amount.toLocaleString()}`);
+      });
+      const noteHtml = notes.length
+          ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:11px; color:#999; line-height:1.6;">💡 ${notes.join('；')}，比例落差主要來自這裡</div>`
+          : '';
+
+      box.innerHTML =
+          bar('收入', cur.income, (cur.income / max) * 100, '#43a047', deltaHtml(cur.income, prev.income, true)) +
+          bar('支出', cur.expense, (cur.expense / max) * 100, '#e53935', deltaHtml(cur.expense, prev.expense, false)) +
+          `<div style="display:flex; align-items:baseline; justify-content:space-between; border-top:1px dashed #ddd; padding-top:8px; margin-top:2px;">
+             <span style="font-size:13px; color:#555; font-weight:bold;">結餘</span>
+             <span style="display:flex; align-items:baseline; gap:8px;">
+               <span style="font-size:18px; font-weight:bold; color:${bal >= 0 ? '#2e7d32' : '#c62828'};">${bal >= 0 ? '+' : '-'}$${Math.abs(bal).toLocaleString()}</span>
+               ${prevBal ? deltaHtml(bal, prevBal, true) : ''}
+             </span>
+           </div>` + noteHtml;
+  };
+
+  // 🆕 篩選面板預設收起：四個欄位常駐約佔 100px，多數時候用不到。
+  //    有套用條件時在標題顯示數量，避免忘了自己還開著篩選、把過濾後的數字當成全部。
+  window.toggleFilterPanel = () => {
+      const body = document.getElementById('filter-body');
+      const caret = document.getElementById('filter-caret');
+      const open = body.classList.contains('hidden');
+      body.classList.toggle('hidden', !open);
+      caret.innerText = open ? '▲' : '▼';
+  };
+
+  window.updateFilterBadge = () => {
+      const badge = document.getElementById('filter-badge');
+      if (!badge) return;
+      const vals = ['filter-category', 'filter-person', 'filter-method']
+          .map(id => document.getElementById(id)?.value)
+          .filter(v => v && v !== '全部');
+      const kw = document.getElementById('stat-keyword')?.value.trim();
+      const n = vals.length + (kw ? 1 : 0);
+      badge.style.display = n ? '' : 'none';
+      badge.innerText = n;
+  };
+
   window.updateCharts = () => {
       if(!google.visualization) return;
+      window.renderSummary();
+      window.updateFilterBadge();
       if (currentChartMode !== 'trend') {
           const selCat = document.getElementById('filter-category'); const selPerson = document.getElementById('filter-person'); const selMethod = document.getElementById('filter-method');
           if (selCat && selPerson && selMethod) {
