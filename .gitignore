@@ -9,3 +9,6 @@ Thumbs.db
 
 # 本機開發用的啟動設定
 .claude/
+
+# 工作日誌只留本機（這是 public repo）
+工作日誌.md
