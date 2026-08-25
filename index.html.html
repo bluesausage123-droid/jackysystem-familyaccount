@@ -1868,13 +1868,14 @@
       };
   };
 
-  const deltaHtml = (cur, prev, higherIsBetter) => {
+  // 紅漲綠跌（亞洲慣例）：不論收入或支出，一律漲紅跌綠。
+  // 原本按「對財務是好是壞」上色，導致同樣是下跌，收入標紅、支出標綠，規則不一致。
+  const deltaHtml = (cur, prev) => {
       if (!prev) return '<span style="font-size:11px; color:#bbb;">上期無資料</span>';
       const pct = ((cur - prev) / prev) * 100;
       if (Math.abs(pct) < 0.05) return '<span style="font-size:11px; color:#999;">持平</span>';
       const up = pct > 0;
-      const good = up === higherIsBetter;
-      const color = good ? '#2e7d32' : '#c62828';
+      const color = up ? '#c62828' : '#2e7d32';
       return `<span style="font-size:11px; font-weight:bold; color:${color};">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
   };
 
@@ -1934,13 +1935,13 @@
           : '';
 
       box.innerHTML =
-          bar('收入', cur.income, (cur.income / max) * 100, '#43a047', deltaHtml(cur.income, prev.income, true)) +
-          bar('支出', cur.expense, (cur.expense / max) * 100, '#e53935', deltaHtml(cur.expense, prev.expense, false)) +
+          bar('收入', cur.income, (cur.income / max) * 100, '#43a047', deltaHtml(cur.income, prev.income)) +
+          bar('支出', cur.expense, (cur.expense / max) * 100, '#e53935', deltaHtml(cur.expense, prev.expense)) +
           `<div style="display:flex; align-items:baseline; justify-content:space-between; border-top:1px dashed #ddd; padding-top:8px; margin-top:2px;">
              <span style="font-size:13px; color:#555; font-weight:bold;">結餘</span>
              <span style="display:flex; align-items:baseline; gap:8px;">
                <span style="font-size:18px; font-weight:bold; color:${bal >= 0 ? '#2e7d32' : '#c62828'};">${bal >= 0 ? '+' : '-'}$${Math.abs(bal).toLocaleString()}</span>
-               ${prevBal ? deltaHtml(bal, prevBal, true) : ''}
+               ${prevBal ? deltaHtml(bal, prevBal) : ''}
              </span>
            </div>` + noteHtml;
   };
