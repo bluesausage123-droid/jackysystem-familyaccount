@@ -149,9 +149,23 @@
     .chart-hint { font-size: 11px; color: #888; text-align: center; margin-top: -10px; margin-bottom: 10px; }
     
     .setting-group { background: #fcfcfc; padding: 15px; border-radius: 10px; border: 1px solid #eee; margin-bottom: 15px; }
-    .setting-list { margin: 10px 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px; }
-    .setting-list li { background: #eee; padding: 5px 10px; border-radius: 5px; font-size: 13px; display: flex; align-items: center; }
-    .del-btn { color: #ff5252; cursor: pointer; font-weight: bold; margin-left: 8px; font-size: 16px; }
+    /* 🔧 原本是橫向標籤雲（flex-wrap），改成垂直列表後每列要各佔一行 */
+    .setting-list { margin: 10px 0; padding: 0; list-style: none; display: block; }
+    /* 🔧 改為垂直列表：原本是橫向標籤雲，刪除鈕只有 13x21px、35 個項目密集排列，
+       誤觸就直接寫進資料庫。垂直排列才放得下 44px 的觸控目標與「使用中筆數」。 */
+    .setting-list li { background: #fff; padding: 4px 6px 4px 12px; border-radius: 8px; font-size: 14px;
+      display: flex; align-items: center; gap: 4px; border: 1px solid #eee; margin-bottom: 6px; }
+    .setting-list .s-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .setting-list .s-usage { font-size: 11px; color: #999; flex-shrink: 0; margin-right: 4px; }
+    .setting-list .s-btn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center;
+      border: 0; background: transparent; border-radius: 8px; cursor: pointer; font-size: 15px; padding: 0; flex-shrink: 0; color: #78909c; }
+    .setting-list .s-btn:active { background: rgba(0,0,0,.07); }
+    .setting-list .s-btn[disabled] { opacity: .25; cursor: default; }
+    .setting-list .s-del { color: #e57373; }
+    .setting-head { display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: bold; color: #555; font-size: 14px; }
+    .setting-head .cnt { background: #eceff1; color: #607d8b; border-radius: 10px; padding: 1px 8px; font-size: 12px; margin-left: 6px; }
+    .btn-sync { background: transparent; color: #00897b; border: 1px dashed #80cbc4; box-shadow: none;
+      font-size: 12px; padding: 7px 10px; width: 100%; margin-top: 4px; }
 
     /* 🔐 登入畫面完美置中排版（含 iOS 安全區） */
     #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f5eef8; z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 20px; padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); transition: opacity 0.3s; }
@@ -611,7 +625,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-  import { getFirestore, collection, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, enableIndexedDbPersistence, writeBatch, deleteField } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, doc, setDoc, enableIndexedDbPersistence, writeBatch, deleteField, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
   import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
   const firebaseConfig = {
@@ -2209,27 +2223,108 @@
     document.getElementById('filter-person').innerHTML = `<option value="全部">所有成員</option>` + [...new Set([...sharedSettings.expPayers||[], ...sharedSettings.incReceivers||[]])].map(p => `<option value="${p}">👤 ${p}</option>`).join('');
     document.getElementById('filter-method').innerHTML = `<option value="全部">所有方式</option>` + [...new Set([...sharedSettings.expMethods||[], ...sharedSettings.incMethods||[]])].map(m => `<option value="${m}">💳 ${m}</option>`).join('');
 
-    document.getElementById('settings-container').innerHTML = Object.entries({'expCategories': '支出分類', 'expMethods':'支出方式', 'incMethods':'收入方式', 'incReceivers':'收款人', 'incPayers':'收入來源'}).map(([k,t])=>`<div class="setting-group"><label>${t}</label><div class="row"><input id="in-${k}"><button class="btn-setting" onclick="addSetting('${k}','in-${k}')">新增</button></div><ul class="setting-list">${(sharedSettings[k]||[]).map((v,i)=>`<li>${v}<span class="del-btn" onclick="removeSetting('${k}',${i})">✖</span></li>`).join('')}</ul></div>`).join('');
+    // 🔧 重寫：垂直列表，每列顯示「使用中筆數」與 ▲▼ 排序，刪除改走二次確認。
+    //    順序即是記帳頁下拉選單的順序，所以排序是有實際用途的。
+    const SETTING_META = {
+        'expCategories': { title: '支出分類', field: 'category', kind: 'expense' },
+        'expMethods':    { title: '支出方式', field: 'method',   kind: 'expense', pair: 'incMethods' },
+        'incMethods':    { title: '收入方式', field: 'method',   kind: 'income',  pair: 'expMethods' },
+        'incReceivers':  { title: '收款人',   field: 'receiver', kind: 'income' },
+        'incPayers':     { title: '收入來源', field: 'payer',    kind: 'income' },
+    };
+    document.getElementById('settings-container').innerHTML = Object.entries(SETTING_META).map(([k, meta]) => {
+        const list = sharedSettings[k] || [];
+        const open = _settingOpen[k] ? '' : 'hidden';
+        const caret = _settingOpen[k] ? '▲' : '▼';
+        const rows = list.map((v, i) => {
+            const used = countSettingUsage(k, v);
+            return `<li>
+              <span class="s-name">${escapeHtml(v)}</span>
+              <span class="s-usage">${used ? used + ' 筆' : '未使用'}</span>
+              <button class="s-btn" ${i === 0 ? 'disabled' : ''} title="上移" onclick="moveSetting('${k}',${i},-1)">▲</button>
+              <button class="s-btn" ${i === list.length - 1 ? 'disabled' : ''} title="下移" onclick="moveSetting('${k}',${i},1)">▼</button>
+              <button class="s-btn s-del" title="刪除" onclick="removeSetting('${k}','${escAttr(v)}')">🗑️</button>
+            </li>`;
+        }).join('') || '<li style="color:#bbb; border:0; background:transparent;">尚未新增任何項目</li>';
+        const syncBtn = meta.pair
+            ? `<button class="btn-sync" onclick="syncSettingPair('${meta.pair}','${k}')">⇄ 從「${SETTING_META[meta.pair].title}」補齊缺少的項目</button>`
+            : '';
+        return `<div class="setting-group">
+          <div class="setting-head" onclick="toggleSettingGroup('${k}')">
+            <span>${meta.title}<span class="cnt">${list.length}</span></span><span>${caret}</span>
+          </div>
+          <div class="${open}" style="margin-top:10px;">
+            <div class="row"><input id="in-${k}" placeholder="輸入名稱後按新增"><button class="btn-setting" onclick="addSetting('${k}','in-${k}')">新增</button></div>
+            <ul class="setting-list">${rows}</ul>
+            ${syncBtn}
+          </div>
+        </div>`;
+    }).join('');
   }
 
-  window.addSetting = async (k, id) => { 
-      const v = document.getElementById(id).value.trim(); 
-      if(v && !(sharedSettings[k]||[]).includes(v)) { 
-          if(!sharedSettings[k]) sharedSettings[k] = []; 
-          sharedSettings[k].push(v); 
-          const settingsRef = doc(db, COL_SETTINGS, "shared_config");
-          await setDoc(settingsRef, sharedSettings); 
-          showToast("✅ 已新增設定！"); document.getElementById(id).value = ''; 
-      } 
+  // 各分組預設收合，避免 35 個項目一次全部攤開
+  const _settingOpen = {};
+  window.toggleSettingGroup = (k) => { _settingOpen[k] = !_settingOpen[k]; refreshAll(); };
+
+  // 某個設定值目前有多少筆紀錄在用——刪除前要讓使用者知道會影響什麼
+  const countSettingUsage = (k, v) => {
+      const meta = { expCategories: ['category', 'expense'], expMethods: ['method', 'expense'],
+                     incMethods: ['method', 'income'], incReceivers: ['receiver', 'income'],
+                     incPayers: ['payer', 'income'] }[k];
+      if (!meta) return 0;
+      const [field, kind] = meta;
+      return cloudRecords.filter(r => {
+          const isInc = (r.type === 'income' || r.type === '收入');
+          if (kind === 'income' ? !isInc : isInc) return false;
+          return r[field] === v;
+      }).length;
   };
 
-  window.removeSetting = async (k, i) => { 
-      if(sharedSettings[k]){ 
-          sharedSettings[k].splice(i, 1); 
-          const settingsRef = doc(db, COL_SETTINGS, "shared_config");
-          await setDoc(settingsRef, sharedSettings); 
-          showToast("🗑️ 已移除設定！"); 
-      } 
+  const settingsRef = () => doc(db, COL_SETTINGS, "shared_config");
+
+  window.addSetting = async (k, id) => {
+      const v = document.getElementById(id).value.trim();
+      if (!v) return;
+      if ((sharedSettings[k] || []).includes(v)) return showToast("⚠️ 這個項目已經存在");
+      // 🔧 arrayUnion 是原子操作：兩個人同時新增不會互相蓋掉（原本整份 setDoc 會）
+      await updateDoc(settingsRef(), { [k]: arrayUnion(v) });
+      showToast("✅ 已新增設定！");
+      document.getElementById(id).value = '';
+  };
+
+  window.removeSetting = async (k, v) => {
+      // 🔧 三個修正：改用「值」而非索引（多裝置同時操作時索引會錯位刪到別人）、
+      //    加二次確認、並先算出有多少紀錄正在使用這個值
+      const used = countSettingUsage(k, v);
+      const warn = used
+          ? `目前有 ${used} 筆紀錄正在使用。\n刪除後那些紀錄仍會保留「${v}」，但選單裡不再出現，\n之後編輯到那幾筆時必須改成別的選項。`
+          : `目前沒有紀錄在使用。`;
+      confirmAction(`移除「${v}」`, warn, '#e53935', async () => {
+          await updateDoc(settingsRef(), { [k]: arrayRemove(v) });
+          showToast("🗑️ 已移除設定！");
+      });
+  };
+
+  // 順序就是記帳頁下拉選單的順序，把常用的排前面可以少捲很多
+  window.moveSetting = async (k, i, dir) => {
+      const list = [...(sharedSettings[k] || [])];
+      const j = i + dir;
+      if (j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      // 排序必須整份寫回（arrayUnion/Remove 無法表達順序），但風險低：不會刪掉任何值
+      await updateDoc(settingsRef(), { [k]: list });
+  };
+
+  // 支出方式與收入方式常常是同一批帳戶，原本要各自建一次
+  window.syncSettingPair = async (from, to) => {
+      const src = sharedSettings[from] || [], dst = sharedSettings[to] || [];
+      const missing = src.filter(v => !dst.includes(v));
+      if (!missing.length) return showToast("✅ 沒有缺少的項目");
+      confirmAction(`補齊 ${missing.length} 個項目`,
+          `將加入：${missing.join('、')}`, '#00897b', async () => {
+          await updateDoc(settingsRef(), { [to]: arrayUnion(...missing) });
+          showToast(`✅ 已補齊 ${missing.length} 個項目`);
+      });
   };
 
   const today = new Date(); const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
