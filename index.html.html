@@ -599,9 +599,11 @@
   // 上架版「愛計家」（Firebase 專案 loveaccount-5b9ca）用的是同樣的 family_ledger_*
   // 名稱與相近的欄位結構。兩者現在靠「不同 Firebase 專案」隔離，資料不會互通，
   // 但只要哪天 projectId 貼錯，寫入會靜默落到另一邊且不報錯。
-  // 集中成常數是為了之後改名成 jj_ 前綴時只動這裡，不必散彈式取代。
-  const COL_RECORDS = "family_ledger_records";
-  const COL_SETTINGS = "family_ledger_settings";
+  // 2026-08-24 已改成 jj_ 前綴，與愛計家的 family_ledger_* 徹底錯開。
+  // 舊的 family_ledger_records / family_ledger_settings 仍留在 family-account-7a03a
+  // 專案裡沒有刪除，確認新版運作穩定後才清掉。
+  const COL_RECORDS = "jj_ledger_records";
+  const COL_SETTINGS = "jj_ledger_settings";
 
   let cloudRecords = [];
   let currentChartMode = 'expense';

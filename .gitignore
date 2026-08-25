@@ -6,3 +6,6 @@ Thumbs.db
 .DS_Store
 .vscode/
 .idea/
+
+# 本機開發用的啟動設定
+.claude/
