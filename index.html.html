@@ -595,6 +595,14 @@
   
   enableIndexedDbPersistence(db).catch((err) => { console.log("Offline mode err:", err.code); });
 
+  // 🆕 Firestore collection 名稱集中管理。
+  // 上架版「愛計家」（Firebase 專案 loveaccount-5b9ca）用的是同樣的 family_ledger_*
+  // 名稱與相近的欄位結構。兩者現在靠「不同 Firebase 專案」隔離，資料不會互通，
+  // 但只要哪天 projectId 貼錯，寫入會靜默落到另一邊且不報錯。
+  // 集中成常數是為了之後改名成 jj_ 前綴時只動這裡，不必散彈式取代。
+  const COL_RECORDS = "family_ledger_records";
+  const COL_SETTINGS = "family_ledger_settings";
+
   let cloudRecords = [];
   let currentChartMode = 'expense';
   let reportCurrentMonthDate = new Date(); 
@@ -834,7 +842,7 @@
   });
 
   function startDatabaseListeners() {
-      const settingsRef = doc(db, "family_ledger_settings", "shared_config");
+      const settingsRef = doc(db, COL_SETTINGS, "shared_config");
       onSnapshot(settingsRef, (docSnap) => {
         if (docSnap.exists()) {
             sharedSettings = docSnap.data();
@@ -848,7 +856,7 @@
         refreshAll(); 
       });
 
-      onSnapshot(query(collection(db, "family_ledger_records"), orderBy("createdAt", "desc")), (snapshot) => {
+      onSnapshot(query(collection(db, COL_RECORDS), orderBy("createdAt", "desc")), (snapshot) => {
         cloudRecords = snapshot.docs.map(doc => {
             const d = doc.data();
             let cleanAmt = parseFloat(String(d.amount).replace(/[^0-9.-]/g, '')) || 0;
@@ -1365,7 +1373,7 @@
                         const targetId = seriesRecords[i].id;
                         // 套用全部時：保留各自的 date/dueDate/groupId，其餘欄位同步
                         const { date, dueDate, groupId, ...metaToUpdate } = data;
-                        batch.update(doc(db, "family_ledger_records", targetId), metaToUpdate);
+                        batch.update(doc(db, COL_RECORDS, targetId), metaToUpdate);
                     }
                     await batch.commit();
                 }
@@ -1376,7 +1384,7 @@
                 return;
             }
         } else {
-            await updateDoc(doc(db, "family_ledger_records", currentEditingId), data);
+            await updateDoc(doc(db, COL_RECORDS, currentEditingId), data);
             showToast("✅ 資料已更新！");
         }
         window.cancelEdit();
@@ -1389,11 +1397,11 @@
         
         if (rType === "single" || rCount <= 1) {
             data.createdAt = serverTimestamp();
-            await addDoc(collection(db, "family_ledger_records"), data);
+            await addDoc(collection(db, COL_RECORDS), data);
         } else {
             // 🔧 改用 writeBatch 原子寫入：離線時暫存於 IndexedDB，網路恢復一次性 commit，避免半截 group
             // 跨 batch（>500 筆）採序列 commit，雖非單一原子操作，但搭配 groupId 與 try/catch 可救援
-            const recordsRef = collection(db, "family_ledger_records");
+            const recordsRef = collection(db, COL_RECORDS);
             const groupId = 'group_' + Date.now();
             const baseDate = parseLocalDate(data.date);
             const customInterval = Number(document.getElementById('main-custom-interval')?.value) || 1;
@@ -1450,7 +1458,7 @@
                   let mm = String(parseInt(cols[1].trim())).padStart(2, '0'); let dd = String(parseInt(cols[2].trim())).padStart(2, '0');
                   const dateStr = `${yy}-${mm}-${dd}`; const category = cols[3].trim(); const item = cols[4].trim(); 
                   let amountStr = cols[5] ? cols[5].replace(/,/g, '').trim() : ''; let amount = amountStr === '' ? 0 : parseFloat(amountStr);
-                  if (item && !isNaN(amount) && amount >= 0) { await addDoc(collection(db, "family_ledger_records"), { type: 'expense', date: dateStr, dueDate: dateStr, amount: amount, item: item, category: category, method: '', isExpected: true, createdAt: serverTimestamp() }); successCount++; }
+                  if (item && !isNaN(amount) && amount >= 0) { await addDoc(collection(db, COL_RECORDS), { type: 'expense', date: dateStr, dueDate: dateStr, amount: amount, item: item, category: category, method: '', isExpected: true, createdAt: serverTimestamp() }); successCount++; }
               }
           }
           showToast(`✅ 成功匯入 ${successCount} 筆待繳帳單！`); document.getElementById('bulk-import-text').value = ''; window.switchTab('expected'); 
@@ -1473,7 +1481,7 @@
   window.confirmSettle = async () => {
       if (!currentSettleId) return; const newDate = document.getElementById('settle-date').value; const newMethod = document.getElementById('settle-method').value; const newAmount = Number(document.getElementById('settle-amount').value);
       if (!newDate || isNaN(newAmount) || newAmount < 0) return showToast("⚠️ 請確認日期與金額填寫正確！");
-      await updateDoc(doc(db, "family_ledger_records", currentSettleId), { isExpected: false, date: newDate, method: newMethod, amount: newAmount, dueDate: deleteField(), createdAt: serverTimestamp() });
+      await updateDoc(doc(db, COL_RECORDS, currentSettleId), { isExpected: false, date: newDate, method: newMethod, amount: newAmount, dueDate: deleteField(), createdAt: serverTimestamp() });
       showToast('✅ 已結清並轉入報表！'); window.closeSettleModal();
   };
 
@@ -1573,7 +1581,7 @@
       if (!startDateStr || isNaN(amount) || amount < 0 || count < 1) return showToast("⚠️ 請確認金額、起始日、期數/截止日是否正確！");
       if (repeatType === 'custom' && customInterval < 1) return showToast("⚠️ 自訂間隔必須 ≥ 1");
       showToast("⏳ 批次產生中...");
-      const recordsRef = collection(db, "family_ledger_records");
+      const recordsRef = collection(db, COL_RECORDS);
       const groupId = repeatType === 'single' ? null : 'group_' + Date.now();
       const baseDate = parseLocalDate(startDateStr);
       // 🔧 改用 writeBatch 原子寫入；跨批失敗加 try/catch 救援
@@ -1674,7 +1682,7 @@
           desc.innerText = `「${itemName}」到期日 ${record.dueDate || record.date}。請問您要刪除哪部分？`;
           document.getElementById('delete-series-modal').classList.add('show');
       }
-      else { confirmAction(`刪除紀錄`, `確定要刪除「${itemName}」嗎？\n刪除後無法復原。`, '#e53935', async () => { await deleteDoc(doc(db, "family_ledger_records", id)); showToast("🗑️ 已成功刪除！"); }); }
+      else { confirmAction(`刪除紀錄`, `確定要刪除「${itemName}」嗎？\n刪除後無法復原。`, '#e53935', async () => { await deleteDoc(doc(db, COL_RECORDS, id)); showToast("🗑️ 已成功刪除！"); }); }
   };
   window.closeDeleteSeries = () => { document.getElementById('delete-series-modal').classList.remove('show'); targetDeleteId = null; targetDeleteGroupId = null; };
   // 🔧 用 writeBatch 原子刪除：避免 for + deleteDoc 在中途斷網留下半截系列
@@ -1685,7 +1693,7 @@
               const batch = writeBatch(db);
               const chunkEnd = Math.min(chunkStart + BATCH_LIMIT, records.length);
               for (let i = chunkStart; i < chunkEnd; i++) {
-                  batch.delete(doc(db, "family_ledger_records", records[i].id));
+                  batch.delete(doc(db, COL_RECORDS, records[i].id));
               }
               await batch.commit();
           }
@@ -1705,7 +1713,7 @@
 
       if (mode === 'single') {
           showToast("⏳ 刪除中...");
-          await deleteDoc(doc(db, "family_ledger_records", deleteId));
+          await deleteDoc(doc(db, COL_RECORDS, deleteId));
           showToast("🗑️ 已成功刪除單筆紀錄！");
       } else if (mode === 'all') {
           showToast("⏳ 刪除中...");
@@ -1969,7 +1977,7 @@
       if(v && !(sharedSettings[k]||[]).includes(v)) { 
           if(!sharedSettings[k]) sharedSettings[k] = []; 
           sharedSettings[k].push(v); 
-          const settingsRef = doc(db, "family_ledger_settings", "shared_config");
+          const settingsRef = doc(db, COL_SETTINGS, "shared_config");
           await setDoc(settingsRef, sharedSettings); 
           showToast("✅ 已新增設定！"); document.getElementById(id).value = ''; 
       } 
@@ -1978,7 +1986,7 @@
   window.removeSetting = async (k, i) => { 
       if(sharedSettings[k]){ 
           sharedSettings[k].splice(i, 1); 
-          const settingsRef = doc(db, "family_ledger_settings", "shared_config");
+          const settingsRef = doc(db, COL_SETTINGS, "shared_config");
           await setDoc(settingsRef, sharedSettings); 
           showToast("🗑️ 已移除設定！"); 
       } 
