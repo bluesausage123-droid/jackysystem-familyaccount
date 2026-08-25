@@ -44,11 +44,15 @@
     .tab.active { background: #fcfcf8; color: #0288d1; border-bottom: 4px solid #0288d1; }
     
     /* 卡片與核心元件樣式 */
-    .card { background: #fcfcf8; padding: 15px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 15px; transition: 0.3s; }
-    h3 { margin-top: 0; color: #444; border-left: 5px solid #0288d1; padding-left: 10px; font-size: 17px; margin-bottom: 15px; }
+    .card { background: #fcfcf8; padding: 12px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 12px; transition: 0.3s; }
+    /* 🔧 表單標題列：把「收起」做進標題右側，展開狀態就不必再佔一整行按鈕（省 54px） */
+    .form-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .btn-collapse { background: transparent; color: #0288d1; border: 1px solid #b3e5fc; box-shadow: none;
+      font-size: 12px; font-weight: bold; padding: 5px 10px; border-radius: 6px; width: auto; flex-shrink: 0; }
+    h3 { margin-top: 0; color: #444; border-left: 5px solid #0288d1; padding-left: 10px; font-size: 17px; margin-bottom: 10px; }
     .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; align-items: flex-end; }
     .row > div { flex: 1; min-width: 130px; }
-    label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 13px; color: #666; }
+    label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #666; }
     input, select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; background-color: #fff; }
     button { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; }
     button:active { transform: scale(0.97); }
@@ -210,9 +214,9 @@
   <div id="alert-banner-container"></div>
 
   <div id="view-expense" class="view-section">
-    <button id="btn-toggle-form-exp" class="btn-toggle-form" onclick="toggleForm('exp')">➖ 收起表單</button>
+    <button id="btn-toggle-form-exp" class="btn-toggle-form hidden" onclick="toggleForm('exp')">➕ 展開表單</button>
     <div class="card" id="form-exp-card">
-      <h3 id="form-exp-title">新增支出</h3>
+      <h3 id="form-exp-title" class="form-head">新增支出<button class="btn-collapse" onclick="toggleForm('exp')" title="收起表單">▲ 收起</button></h3>
       <div class="input-form-grid">
         <div><label>日期 <span class="quick-btn" onclick="setQuickDate('exp-date', -1)">昨</span><span class="quick-btn" onclick="setQuickDate('exp-date', 0)">今</span></label><input type="date" id="exp-date"></div>
         <div><label>分類</label><select id="exp-category" onchange="updateHistoryDatalists()"></select></div>
@@ -227,9 +231,9 @@
   </div>
 
   <div id="view-expected" class="view-section hidden">
-    <button id="btn-toggle-form-exp-exp" class="btn-toggle-form" onclick="toggleForm('exp-exp')">➖ 收起表單</button>
+    <button id="btn-toggle-form-exp-exp" class="btn-toggle-form hidden" onclick="toggleForm('exp-exp')">➕ 展開表單</button>
     <div class="card" id="form-exp-exp-card">
-      <h3 id="form-exp-exp-title" style="border-left-color:#f57c00;">新增待繳款項</h3>
+      <h3 id="form-exp-exp-title" class="form-head" style="border-left-color:#f57c00;">新增待繳款項<button class="btn-collapse" onclick="toggleForm('exp-exp')" title="收起表單">▲ 收起</button></h3>
       <div style="font-size:12px; color:#888; margin-top:-8px; margin-bottom:15px; line-height:1.5;">設定到期日後，到期前會自動提醒；可一次建立週期帳單免重複輸入</div>
       <div class="input-form-grid">
         <div>
@@ -303,14 +307,15 @@
         <div style="color:#666; font-weight:bold;">區間待繳總計</div>
         <div class="val-expected" id="exp-list-total" style="font-size:24px; margin-top:5px;">$0</div>
       </div>
+      <div id="expected-overdue-hint"></div>
       <div id="expected-list"></div>
     </div>
   </div>
 
   <div id="view-income" class="view-section hidden">
-    <button id="btn-toggle-form-inc" class="btn-toggle-form" onclick="toggleForm('inc')">➖ 收起表單</button>
+    <button id="btn-toggle-form-inc" class="btn-toggle-form hidden" onclick="toggleForm('inc')">➕ 展開表單</button>
     <div class="card" id="form-inc-card">
-      <h3 id="form-inc-title">新增收入</h3>
+      <h3 id="form-inc-title" class="form-head">新增收入<button class="btn-collapse" onclick="toggleForm('inc')" title="收起表單">▲ 收起</button></h3>
       <div class="input-form-grid">
         <div><label>日期 <span class="quick-btn" onclick="setQuickDate('inc-date', -1)">昨</span><span class="quick-btn" onclick="setQuickDate('inc-date', 0)">今</span></label><input type="date" id="inc-date"></div>
         <div><label>收款人</label><select id="inc-receiver"></select></div>
@@ -938,7 +943,18 @@
       try { let expr = calcExpression.replace(/×/g, '*').replace(/÷/g, '/'); let result = new Function('return ' + expr)(); result = Math.round(result * 100) / 100; const finalSum = result > 0 ? result : 0; document.getElementById(calcTargetInputId).value = finalSum > 0 ? finalSum : ''; document.getElementById('calc-modal').classList.remove('show'); showToast("✅ 已帶入計算結果！"); } catch (e) { showToast("⚠️ 算式未完成，請確認"); }
   };
 
-  window.toggleForm = (prefix) => { const form = document.getElementById(`form-${prefix}-card`); const btn = document.getElementById(`btn-toggle-form-${prefix}`); if (form.classList.contains('hidden')) { form.classList.remove('hidden'); btn.innerHTML = '➖ 收起表單'; } else { form.classList.add('hidden'); btn.innerHTML = '➕ 展開表單'; } };
+  // 🔧 展開狀態下外部按鈕整個收掉（收起功能移到卡片標題列），省下一整行的高度
+  window.setFormOpen = (prefix, open) => {
+      const form = document.getElementById(`form-${prefix}-card`);
+      const btn = document.getElementById(`btn-toggle-form-${prefix}`);
+      form.classList.toggle('hidden', !open);
+      btn.classList.toggle('hidden', open);
+      btn.innerHTML = '➕ 展開表單';
+  };
+  window.toggleForm = (prefix) => {
+      const form = document.getElementById(`form-${prefix}-card`);
+      window.setFormOpen(prefix, form.classList.contains('hidden'));
+  };
 
   window.exportCSV = () => {
       confirmAction("📥 匯出資料", "將所有帳目下載為 CSV 檔？", "#1976d2", () => {
@@ -1456,7 +1472,7 @@
             window.setEndMode('main', 'count'); // 重置回「指定期數」模式
             const mainUntil = document.getElementById('main-repeat-until'); if (mainUntil) mainUntil.value = '';
         }
-        document.getElementById(`form-${prefix}-card`).classList.add('hidden'); window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.setFormOpen(prefix, false); window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     } finally {
         // 🔧 不論成功/失敗/早退，都要釋放鎖
@@ -1542,7 +1558,7 @@
       window.previousDrilldownCatForEdit = drilldownCat; if(drilldownCat) window.closeDrilldown();
       currentEditingId = id; let prefix = '';
       if (record.type === 'expense' || record.type === '支出') { prefix = record.isExpected ? 'exp-exp' : 'exp'; window.switchTab(record.isExpected ? 'expected' : 'expense'); } else { prefix = 'inc'; window.switchTab('income'); }
-      document.getElementById(`form-${prefix}-card`).classList.remove('hidden'); document.getElementById(`btn-toggle-form-${prefix}`).innerHTML = '➖ 收起表單';
+      window.setFormOpen(prefix, true);
       document.getElementById(`${prefix}-date`).value = record.isExpected ? record.dueDate : record.date; document.getElementById(`${prefix}-amount`).value = record.amount; document.getElementById(`${prefix}-item`).value = record.item;
       if (record.type === 'expense' || record.type === '支出') { document.getElementById(`${prefix}-category`).value = record.category; document.getElementById(`${prefix}-method`).value = record.method || ''; } else { document.getElementById('inc-receiver').value = record.receiver || ''; document.getElementById('inc-payer-input').value = record.payer || ''; document.getElementById('inc-method').value = record.method || ''; }
 
@@ -1704,6 +1720,12 @@
           document.getElementById('delete-series-modal').classList.add('show');
       }
       else { confirmAction(`刪除紀錄`, `確定要刪除「${itemName}」嗎？\n刪除後無法復原。`, '#e53935', async () => { await deleteDoc(doc(db, COL_RECORDS, id)); showToast("🗑️ 已成功刪除！"); }); }
+  };
+  // 把開始日往前拉到最早那筆逾期，讓它們出現在清單裡
+  window.showOverdue = (earliest) => {
+      document.getElementById('exp-list-start').value = earliest;
+      window.renderLists();
+      showToast("已顯示逾期項目");
   };
   window.closeDeleteSeries = () => { document.getElementById('delete-series-modal').classList.remove('show'); targetDeleteId = null; targetDeleteGroupId = null; };
   // 🔧 用 writeBatch 原子刪除：避免 for + deleteDoc 在中途斷網留下半截系列
@@ -1956,6 +1978,20 @@
     let expected = cloudRecords.filter(r => (r.type === 'expense' || r.type === '支出') && r.isExpected);
     if (listStart) expected = expected.filter(r => (r.dueDate || r.date) >= listStart); if (listEnd) expected = expected.filter(r => (r.dueDate || r.date) <= listEnd);
     expected = expected.sort((a,b) => (a.dueDate || a.date) > (b.dueDate || b.date) ? 1 : -1);
+    // 🔧 落在開始日之前、卻還沒結清的（逾期未繳）：不能因為預設區間從今天起就讓它們消失
+    const overdue = cloudRecords.filter(r =>
+        (r.type === 'expense' || r.type === '支出') && r.isExpected &&
+        listStart && (r.dueDate || r.date || '') < listStart);
+    const hintEl = document.getElementById('expected-overdue-hint');
+    if (hintEl) {
+        if (overdue.length) {
+            const earliest = overdue.map(r => r.dueDate || r.date).sort()[0];
+            const sum = overdue.reduce((s, r) => s + r.amount, 0);
+            hintEl.innerHTML = `<div onclick="showOverdue('${earliest}')" style="cursor:pointer; background:#ffebee; border:1px solid #ffcdd2; color:#c62828; padding:10px 12px; border-radius:8px; margin-bottom:10px; font-size:13px; font-weight:bold;">⚠️ 另有 ${overdue.length} 筆逾期未繳（共 $${sum.toLocaleString()}）不在目前區間內，點此顯示</div>`;
+        } else {
+            hintEl.innerHTML = '';
+        }
+    }
     let expectedTotal = 0; expected.forEach(r => expectedTotal += r.amount); document.getElementById('exp-list-total').innerText = `$${expectedTotal.toLocaleString()}`;
     
     document.getElementById('expected-list').innerHTML = expected.map(r => {
@@ -2034,7 +2070,9 @@
 
   document.getElementById('exp-date').value = todayStr; document.getElementById('exp-exp-date').value = todayStr; document.getElementById('inc-date').value = todayStr;
   document.getElementById('stat-start').value = `${today.getFullYear()}-01-01`; document.getElementById('stat-end').value = todayStr;
-  document.getElementById('exp-list-start').value = tmStr; document.getElementById('exp-list-end').value = nmStr;
+  // 🔧 待繳清單預設「從今天起」：往前兩個月的多半已經繳完，開啟時要看的是接下來要繳什麼。
+  //    需要回頭查舊帳時再自行把開始日往前調。
+  document.getElementById('exp-list-start').value = todayStr; document.getElementById('exp-list-end').value = nmStr;
   
   const updateVersionDisplay = () => {
       const lastMod = new Date(document.lastModified);
