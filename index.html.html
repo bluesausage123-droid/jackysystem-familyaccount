@@ -380,7 +380,7 @@
         <div id="stat-filter-panel" class="card" style="background:#f4f9f9; padding: 10px 15px; border: 1px solid #e0f2f1;">
           <div id="filter-head" onclick="toggleFilterPanel()" style="font-size: 13px; font-weight: bold; color: #00897b; cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
             <span>🎯 多維度交叉篩選<span id="filter-badge" style="display:none; margin-left:6px; background:#00897b; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px;"></span></span>
-            <span id="filter-caret">▼</span>
+            <span style="font-size:12px; font-weight:normal; color:#00897b;"><span id="filter-caret-text">展開</span> <span id="filter-caret">▼</span></span>
           </div>
           <div id="filter-body" class="hidden" style="margin-top:8px;">
           <div class="input-form-grid" style="margin-bottom:0;">
@@ -2001,12 +2001,23 @@
 
   // 🆕 篩選面板預設收起：四個欄位常駐約佔 100px，多數時候用不到。
   //    有套用條件時在標題顯示數量，避免忘了自己還開著篩選、把過濾後的數字當成全部。
-  window.toggleFilterPanel = () => {
+  // 記住使用者的選擇：原本每次進報表都是收起的，常用篩選的人每次都要重點一次，
+  // 會以為「篩選欄位不見了」。
+  const FILTER_OPEN_KEY = 'jj_filter_panel_open';
+  let _filterPanelInitialized = false;
+  window.setFilterPanel = (open, remember) => {
       const body = document.getElementById('filter-body');
       const caret = document.getElementById('filter-caret');
-      const open = body.classList.contains('hidden');
+      const caretText = document.getElementById('filter-caret-text');
+      if (!body) return;
       body.classList.toggle('hidden', !open);
-      caret.innerText = open ? '▲' : '▼';
+      if (caret) caret.innerText = open ? '▲' : '▼';
+      if (caretText) caretText.innerText = open ? '收合' : '展開';
+      if (remember) { try { localStorage.setItem(FILTER_OPEN_KEY, open ? '1' : '0'); } catch (e) {} };
+  };
+  window.toggleFilterPanel = () => {
+      const body = document.getElementById('filter-body');
+      window.setFilterPanel(body.classList.contains('hidden'), true);
   };
 
   window.updateFilterBadge = () => {
@@ -2019,6 +2030,16 @@
       const n = vals.length + (kw ? 1 : 0);
       badge.style.display = n ? '' : 'none';
       badge.innerText = n;
+      // 有套用條件就一定要展開——否則使用者看到被過濾的數字，卻看不到自己設了什麼條件。
+      // 沒有條件時依照上次記住的選擇。
+      if (n > 0) {
+          window.setFilterPanel(true, false);
+      } else if (!_filterPanelInitialized) {
+          let saved = '0';
+          try { saved = localStorage.getItem(FILTER_OPEN_KEY) || '0'; } catch (e) {}
+          window.setFilterPanel(saved === '1', false);
+      }
+      _filterPanelInitialized = true;
   };
 
   window.updateCharts = () => {
