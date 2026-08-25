@@ -373,8 +373,12 @@
 
     <div id="report-view-main">
         <div class="card" id="report-summary" style="padding:12px;">
-          <div id="summary-range" style="font-size:12px; color:#888; margin-bottom:10px;"></div>
-          <div id="summary-bars"></div>
+          <div id="summary-head" onclick="toggleSummaryPanel()" style="display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; min-height:32px;">
+            <div id="summary-range" style="font-size:12px; color:#888; flex:1; min-width:0;"></div>
+            <span style="font-size:12px; color:#00897b; white-space:nowrap; flex-shrink:0;"><span id="summary-caret-text">收合</span> <span id="summary-caret">▲</span></span>
+          </div>
+          <div id="summary-collapsed" class="hidden" style="margin-top:6px;"></div>
+          <div id="summary-bars" style="margin-top:10px;"></div>
         </div>
 
         <div id="stat-filter-panel" class="card" style="background:#f4f9f9; padding: 10px 15px; border: 1px solid #e0f2f1;">
@@ -1919,9 +1923,14 @@
       };
   };
 
+  // 自用版不顯示月比漲跌（畫面要留給下方明細），但上架版本要保留這功能，
+  // 所以程式碼整段留著，只用這個旗標關掉。上架版把它改回 true 即可。
+  const SHOW_DELTA = false;
+
   // 紅漲綠跌（亞洲慣例）：不論收入或支出，一律漲紅跌綠。
   // 原本按「對財務是好是壞」上色，導致同樣是下跌，收入標紅、支出標綠，規則不一致。
   const deltaHtml = (cur, prev) => {
+      if (!SHOW_DELTA) return '';
       if (!prev) return '<span style="font-size:11px; color:#bbb;">上期無資料</span>';
       const pct = ((cur - prev) / prev) * 100;
       if (Math.abs(pct) < 0.05) return '<span style="font-size:11px; color:#999;">持平</span>';
@@ -1957,8 +1966,7 @@
       const prev = sumRange(P.prevStart, P.prevEnd);
       const bal = cur.income - cur.expense, prevBal = prev.income - prev.expense;
       const max = Math.max(cur.income, cur.expense, 1);
-      rangeEl.innerHTML = `${P.label}<span style="color:#bbb;">　對比　</span>${P.prevLabel}`
-          + (P.partial ? '<span style="color:#f57c00;">（本月尚未結束，比的是上月同一段日子）</span>' : '');
+      rangeEl.innerHTML = `${P.label}<span style="color:#bbb;">　對比　</span>${P.prevLabel}`;
       const bar = (label, val, pct, color, delta) => `
         <div style="margin-bottom:10px;">
           <div style="display:flex; align-items:baseline; gap:8px;">
@@ -1995,6 +2003,45 @@
                ${prevBal ? deltaHtml(bal, prevBal) : ''}
              </span>
            </div>` + noteHtml;
+
+      // 收合時只留一行：收入／支出／結餘各一個數字。全部藏起來的話，
+      // 使用者會不知道自己收合掉的是什麼，還得展開一次才想起來。
+      const mini = document.getElementById('summary-collapsed');
+      if (mini) {
+          mini.innerHTML = `
+            <div style="display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; font-size:13px;">
+              <span style="color:#43a047; font-weight:bold; white-space:nowrap;">收 $${cur.income.toLocaleString()}</span>
+              <span style="color:#e53935; font-weight:bold; white-space:nowrap;">支 $${cur.expense.toLocaleString()}</span>
+              <span style="color:${bal >= 0 ? '#2e7d32' : '#c62828'}; font-weight:bold; white-space:nowrap;">餘 ${bal >= 0 ? '+' : '-'}$${Math.abs(bal).toLocaleString()}</span>
+            </div>`;
+      }
+      window.applySummaryPanel();
+  };
+
+  // 報表摘要可收合：長條圖＋結餘約佔 130px，看明細時把它收掉，下方資料才進得了第一屏。
+  // 記住使用者的選擇，否則每次切回報表都要再點一次。
+  const SUMMARY_OPEN_KEY = 'jj_summary_panel_open';
+  let _summaryOpen = null;
+  window.applySummaryPanel = () => {
+      if (_summaryOpen === null) {
+          let saved = '1';
+          try { saved = localStorage.getItem(SUMMARY_OPEN_KEY) || '1'; } catch (e) {}
+          _summaryOpen = (saved === '1');
+      }
+      const bars = document.getElementById('summary-bars');
+      const mini = document.getElementById('summary-collapsed');
+      const caret = document.getElementById('summary-caret');
+      const caretText = document.getElementById('summary-caret-text');
+      if (bars) bars.classList.toggle('hidden', !_summaryOpen);
+      if (mini) mini.classList.toggle('hidden', _summaryOpen);
+      if (caret) caret.innerText = _summaryOpen ? '▲' : '▼';
+      if (caretText) caretText.innerText = _summaryOpen ? '收合' : '展開';
+  };
+  window.toggleSummaryPanel = () => {
+      if (_summaryOpen === null) window.applySummaryPanel();  // 先讀回記住的狀態，否則第一次點會從錯的一邊翻
+      _summaryOpen = !_summaryOpen;
+      try { localStorage.setItem(SUMMARY_OPEN_KEY, _summaryOpen ? '1' : '0'); } catch (e) {}
+      window.applySummaryPanel();
   };
 
   // 🆕 篩選面板預設收起：四個欄位常駐約佔 100px，多數時候用不到。
