@@ -1,0 +1,8 @@
+# 本機測試工具（滑動手感的瀏覽器 harness），不需要進版控
+_test/
+
+# 系統與編輯器
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
