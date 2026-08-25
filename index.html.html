@@ -653,6 +653,9 @@
       else if (formPrefix === 'dup' && window.updateDupPreview) window.updateDupPreview();
   };
 
+  // 🆕 批次期數的絕對上限（截止日模式與指定期數模式共用同一個值）
+  const MAX_PERIODS = 1000;
+
   // 🆕 共用：把 "YYYY-MM-DD" 字串解析為「本地日期」
   // 修正 iOS Safari 把 "YYYY-MM-DD" 當 UTC 解析造成日期偏移一天的 bug；
   // 改寫成 "YYYY/MM/DD" 後 Safari 會強制以 Local Time 解析。
@@ -673,7 +676,7 @@
       if (repeatType === 'custom' && (isNaN(interval) || interval <= 0)) return 0;
       let count = 0;
       let lastTime = -Infinity;
-      while (count < 500) { // 安全上限
+      while (count < MAX_PERIODS) { // 安全上限（與 saveData / confirmDuplicate 同一個常數）
           const d = computeDateAt(baseDate, repeatType, count, interval, customUnit);
           // 雙重防呆：若日期沒有推進（無窮迴圈跡象）立即中斷
           if (d.getTime() <= lastTime) break;
@@ -747,7 +750,8 @@
       const dateAt = (i) => computeDateAt(baseDate, repeatType, i, customInterval, customUnit);
       const unitName = { day:'天', week:'週', month:'月', year:'年' }[customUnit] || '';
       const intervalDesc = repeatType === 'custom' ? `每 ${customInterval} ${unitName}` : (repeatType === 'month' ? '每月' : '每年');
-      const endDesc = isUntilMode ? `截止 ${untilStr}（自動推算 ${count} 期）` : `共 ${count} 期`;
+      const capWarn = (isUntilMode && count >= MAX_PERIODS) ? `<span style="color:#c62828;">　⚠️ 已達 ${MAX_PERIODS} 期上限，之後的期數不會建立</span>` : '';
+      const endDesc = isUntilMode ? `截止 ${untilStr}（自動推算 ${count} 期）${capWarn}` : `共 ${count} 期`;
       let lines = [`<span style="color:#0277bd;">間隔：${intervalDesc}　|　${endDesc}</span>`];
       const showCount = Math.min(count, 3);
       for (let i = 0; i < showCount; i++) lines.push(`第 ${i+1} 期：${fmt(dateAt(i))}`);
@@ -780,7 +784,8 @@
       const dateAt = (i) => computeDateAt(baseDate, repeatType, i, customInterval, customUnit);
       const unitName = { day:'天', week:'週', month:'月', year:'年' }[customUnit] || '';
       const intervalDesc = repeatType === 'custom' ? `每 ${customInterval} ${unitName}` : (repeatType === 'month' ? '每月' : (repeatType === 'year' ? '每年' : '單筆'));
-      const endDesc = isUntilMode ? `截止 ${untilStr}（自動推算 ${count} 期）` : `共 ${count} 期`;
+      const capWarn = (isUntilMode && count >= MAX_PERIODS) ? `<span style="color:#c62828;">　⚠️ 已達 ${MAX_PERIODS} 期上限，之後的期數不會建立</span>` : '';
+      const endDesc = isUntilMode ? `截止 ${untilStr}（自動推算 ${count} 期）${capWarn}` : `共 ${count} 期`;
       let lines = [`<span style="color:#0277bd;">間隔：${intervalDesc}　|　${endDesc}</span>`];
       const showCount = Math.min(count, 3);
       for (let i = 0; i < showCount; i++) lines.push(`第 ${i+1} 期：${fmt(dateAt(i))}`);
@@ -943,7 +948,7 @@
 
       const renderList = (filterStart, filterEnd, labelStr) => {
           const details = allDrilldownRecords.filter(r => r.date >= filterStart && r.date <= filterEnd); let total = 0;
-          const listHtml = details.map(r => { total += r.amount; const methodOrPayer = currentChartMode === 'expense' ? r.method : r.payer; return `<div class="acc-item"><div style="flex:1; min-width:0; padding-right:10px;"><div style="font-weight:bold; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${r.item}</div><div style="font-size:12px; color:#888;">${r.date} | ${methodOrPayer || '無'}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><span style="font-weight:bold; color:${currentChartMode==='expense'?'#e53935':'#43a047'}; margin-right:8px; font-size:15px;">$${r.amount.toLocaleString()}</span><span class="action-icons" style="font-size:16px;"><span onclick="triggerEdit('${r.id}', '${catName}')">✏️</span><span onclick="closeDrilldown(); deleteRecord('${r.id}', '${r.item}')">🗑️</span></span></div></div>`; }).join('');
+          const listHtml = details.map(r => { total += r.amount; const methodOrPayer = currentChartMode === 'expense' ? r.method : r.payer; return `<div class="acc-item"><div style="flex:1; min-width:0; padding-right:10px;"><div style="font-weight:bold; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(r.item)}</div><div style="font-size:12px; color:#888;">${r.date} | ${escapeHtml(methodOrPayer || '無')}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><span style="font-weight:bold; color:${currentChartMode==='expense'?'#e53935':'#43a047'}; margin-right:8px; font-size:15px;">$${r.amount.toLocaleString()}</span><span class="action-icons" style="font-size:16px;"><span onclick="triggerEdit('${r.id}', '${escAttr(catName)}')">✏️</span><span onclick="closeDrilldown(); deleteRecord('${r.id}')">🗑️</span></span></div></div>`; }).join('');
           document.getElementById('drilldown-range-label').innerText = labelStr; document.getElementById('drilldown-total-val').innerText = `$${total.toLocaleString()}`; document.getElementById('drilldown-total-val').style.color = currentChartMode === 'expense' ? '#e53935' : '#43a047'; document.getElementById('drilldown-list-container').innerHTML = listHtml || '<div style="text-align:center;color:#999;padding:20px;">此月份無明細記錄。</div>';
       };
 
@@ -967,6 +972,9 @@
 
   // 🆕 歷史紀錄智慧浮動選單
   const escapeHtml = (s) => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // 🔧 onclick 屬性裡的 JS 字串參數：先跳脫反斜線與單引號（JS 層），再跳脫 HTML 特殊字元（屬性層）。
+  //    少了這層，品項名含撇號（McDonald's）會讓 onclick 變成語法錯誤，按鈕靜默失效。
+  const escAttr = (s) => escapeHtml(String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
   // 高亮輸入字串（用於符合搜尋的部分）
   const highlightMatch = (text, query) => {
       const safe = escapeHtml(text);
@@ -1247,8 +1255,8 @@
       const alertContainer = document.getElementById('alert-banner-container'); alertContainer.innerHTML = ''; 
       cloudRecords.filter(r => (r.type === 'expense' || r.type === '支出') && r.isExpected).forEach(r => {
           if (!r.dueDate) return;
-          if (r.dueDate === todayStr || r.dueDate < todayStr) alertContainer.innerHTML += `<div class="alert-box alert-today"><span class="alert-text">🚨 今天(${r.dueDate})到期：${r.item}，$${r.amount.toLocaleString()}</span></div>`;
-          else if (r.dueDate === tomorrowStr) alertContainer.innerHTML += `<div class="alert-box alert-tomorrow"><span class="alert-text">⚠️ 明天(${r.dueDate})到期：${r.item}，$${r.amount.toLocaleString()}</span></div>`;
+          if (r.dueDate === todayStr || r.dueDate < todayStr) alertContainer.innerHTML += `<div class="alert-box alert-today"><span class="alert-text">🚨 今天(${r.dueDate})到期：${escapeHtml(r.item)}，$${r.amount.toLocaleString()}</span></div>`;
+          else if (r.dueDate === tomorrowStr) alertContainer.innerHTML += `<div class="alert-box alert-tomorrow"><span class="alert-text">⚠️ 明天(${r.dueDate})到期：${escapeHtml(r.item)}，$${r.amount.toLocaleString()}</span></div>`;
       });
   }
 
@@ -1314,7 +1322,7 @@
         let rType = isExpected ? document.getElementById('main-repeat-type').value : "single";
         let rCount = rType === 'single' ? 1 : parseInt(getEffectiveCount('main'), 10);
         if (isNaN(rCount) || rCount <= 0) rCount = 1;
-        if (rCount > 1000) rCount = 1000; // 絕對上限：防止意外輸入卡死裝置
+        if (rCount > MAX_PERIODS) rCount = MAX_PERIODS; // 絕對上限：防止意外輸入卡死裝置
         if (isExpected && rType !== 'single' && rCount < 1) return showToast("⚠️ 期數無效，請檢查截止日或期數設定！");
         
         if (rType === "single" || rCount <= 1) {
@@ -1388,11 +1396,14 @@
   };
 
   let currentSettleId = null;
-  window.settleExpected = (id, item, amount, savedMethod) => {
+  window.settleExpected = (id) => {
+      // 🔧 改為只接 id，其餘欄位由 cloudRecords 反查：避免品項名內插進 onclick 造成語法錯誤
+      const rec = cloudRecords.find(r => r.id === id) || {};
+      const item = rec.item ?? ''; const amount = rec.amount ?? ''; const savedMethod = rec.method || '';
       currentSettleId = id; document.getElementById('settle-title').innerText = `結清：「${item}」`;
       const d = new Date(); const localToday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       document.getElementById('settle-date').value = localToday; document.getElementById('settle-amount').value = amount;
-      const methodSelect = document.getElementById('settle-method'); methodSelect.innerHTML = (sharedSettings.expMethods||[]).map(v => `<option value="${v}">${v}</option>`).join('');
+      const methodSelect = document.getElementById('settle-method'); methodSelect.innerHTML = (sharedSettings.expMethods||[]).map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
       const defaultMethod = savedMethod || (sharedSettings.expMethods ? sharedSettings.expMethods[0] : '現金'); methodSelect.value = defaultMethod;
       document.getElementById('settle-modal').classList.add('show');
   };
@@ -1494,7 +1505,7 @@
       const amount = Number(document.getElementById('dup-amount').value); const startDateStr = document.getElementById('dup-date').value; const repeatType = document.getElementById('dup-repeat-type').value;
       let count = repeatType === 'single' ? 1 : parseInt(getEffectiveCount('dup'), 10);
       if (isNaN(count) || count <= 0) count = 1;
-      if (count > 1000) count = 1000; // 絕對上限
+      if (count > MAX_PERIODS) count = MAX_PERIODS; // 絕對上限
       const customInterval = Number(document.getElementById('dup-custom-interval')?.value) || 1;
       const customUnit = document.getElementById('dup-custom-unit')?.value || 'month';
       if (!startDateStr || isNaN(amount) || amount < 0 || count < 1) return showToast("⚠️ 請確認金額、起始日、期數/截止日是否正確！");
@@ -1565,8 +1576,9 @@
   };
 
   let targetDeleteId = null; let targetDeleteGroupId = null;
-  window.deleteRecord = (id, itemName) => { 
+  window.deleteRecord = (id) => { 
       const record = cloudRecords.find(r => r.id === id);
+      const itemName = record?.item ?? '這筆紀錄'; // 🔧 改由 id 反查，不再從 onclick 內插
       if (record && record.groupId) { targetDeleteId = id; targetDeleteGroupId = record.groupId; document.getElementById('delete-series-modal').classList.add('show'); } 
       else { confirmAction(`刪除紀錄`, `確定要刪除「${itemName}」嗎？\n刪除後無法復原。`, '#e53935', async () => { await deleteDoc(doc(db, "family_ledger_records", id)); showToast("🗑️ 已成功刪除！"); }); }
   };
@@ -1781,7 +1793,7 @@
 
   window.renderLists = () => {
     let expDisplay = cloudRecords.filter(r => (r.type === 'expense' || r.type === '支出') && !r.isExpected && r.category !== '分類' && r.category !== '卡費').sort(sortByDateDescThenCreatedAsc);
-    document.getElementById('recent-expense-list').innerHTML = expDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${r.item}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${emojiMap[r.category] || r.category}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${r.method}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-expense">-$${r.amount.toLocaleString()}</div><div class="action-icons"><span onclick="triggerEdit('${r.id}')">✏️</span><span onclick="deleteRecord('${r.id}', '${r.item}')">🗑️</span></div></div></div>`).join('');
+    document.getElementById('recent-expense-list').innerHTML = expDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(emojiMap[r.category] || r.category)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.method)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-expense">-$${r.amount.toLocaleString()}</div><div class="action-icons"><span onclick="triggerEdit('${r.id}')">✏️</span><span onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
     
     const listStart = document.getElementById('exp-list-start').value; const listEnd = document.getElementById('exp-list-end').value;
     let expected = cloudRecords.filter(r => (r.type === 'expense' || r.type === '支出') && r.isExpected);
@@ -1796,25 +1808,25 @@
       return `
       <div class="list-item" style="flex-direction:column; align-items:stretch; gap:6px; padding:12px 5px;">
         <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-          <button class="btn-settle" style="margin-right:0;" onclick="settleExpected('${r.id}', '${r.item}', '${r.amount}', '${r.method || ''}')">✅ 結清</button>
+          <button class="btn-settle" style="margin-right:0;" onclick="settleExpected('${r.id}')">✅ 結清</button>
           <div style="flex:1; min-width:0; overflow:hidden;">
             <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              <b>${r.item}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${catDisplay}</span>
+              <b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(catDisplay)}</span>
             </div>
             <div style="font-size:12px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              <span style="color:#e65100; font-weight:bold;">${r.dueDate || r.date}</span> · ${r.method || '無'} ${cardLabel}
+              <span style="color:#e65100; font-weight:bold;">${r.dueDate || r.date}</span> · ${escapeHtml(r.method || '無')} ${cardLabel}
             </div>
           </div>
           <div class="val-expected" style="flex-shrink:0;">-$${r.amount.toLocaleString()}</div>
         </div>
         <div style="display:flex; gap:10px; justify-content:flex-end; align-items:center;">
           <span title="修改 / 續期" style="font-size:20px; cursor:pointer; padding:4px 10px;" onclick="triggerEdit('${r.id}')">✏️</span>
-          <span title="刪除" style="font-size:20px; cursor:pointer; padding:4px 10px;" onclick="deleteRecord('${r.id}', '${r.item}')">🗑️</span>
+          <span title="刪除" style="font-size:20px; cursor:pointer; padding:4px 10px;" onclick="deleteRecord('${r.id}')">🗑️</span>
         </div>
       </div>`}).join('');
 
     let incDisplay = cloudRecords.filter(r => (r.type === 'income' || r.type === '收入')).sort(sortByDateDescThenCreatedAsc);
-    document.getElementById('recent-income-list').innerHTML = incDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${r.item}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${r.receiver}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${r.payer}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-income">+$${r.amount.toLocaleString()}</div><div class="action-icons"><span onclick="triggerEdit('${r.id}')">✏️</span><span onclick="deleteRecord('${r.id}', '${r.item}')">🗑️</span></div></div></div>`).join('');
+    document.getElementById('recent-income-list').innerHTML = incDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(r.receiver)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.payer)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-income">+$${r.amount.toLocaleString()}</div><div class="action-icons"><span onclick="triggerEdit('${r.id}')">✏️</span><span onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
   };
 
   function refreshAll() {
@@ -1823,10 +1835,10 @@
     const catHtml = cats.map(c => `<option value="${c}">${emojiMap[c] || c}</option>`).join('');
     document.getElementById('exp-category').innerHTML = catHtml; document.getElementById('exp-exp-category').innerHTML = catHtml + `<option value="卡費">💳 卡費</option>`;
     
-    const expMethodHtml = (sharedSettings.expMethods||[]).map(v=>`<option value="${v}">${v}</option>`).join('');
+    const expMethodHtml = (sharedSettings.expMethods||[]).map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
     document.getElementById('exp-method').innerHTML = expMethodHtml; document.getElementById('exp-exp-method').innerHTML = expMethodHtml; 
-    document.getElementById('inc-method').innerHTML = (sharedSettings.incMethods||[]).map(v=>`<option value="${v}">${v}</option>`).join('');
-    document.getElementById('inc-receiver').innerHTML = (sharedSettings.incReceivers||[]).map(v=>`<option value="${v}">${v}</option>`).join('');
+    document.getElementById('inc-method').innerHTML = (sharedSettings.incMethods||[]).map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    document.getElementById('inc-receiver').innerHTML = (sharedSettings.incReceivers||[]).map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
     document.getElementById('inc-payer-options').innerHTML = (sharedSettings.incPayers||[]).map(v=>`<option value="${v}">`).join('');
     
     document.getElementById('filter-category').innerHTML = `<option value="全部">所有分類</option>` + catHtml + `<option value="卡費">💳 卡費</option>`;
