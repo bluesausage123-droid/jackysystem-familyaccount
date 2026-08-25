@@ -15,7 +15,7 @@
   
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#0288d1">
-  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22JJ%E5%AE%B6%E5%BA%AD%E8%A8%98%E5%B8%B3%E7%B3%BB%E7%B5%B1%22%2C%22short_name%22%3A%22JJ%E5%AE%B6%E5%BA%AD%E8%A8%98%E5%B8%B3%E7%B3%BB%E7%B5%B1%22%2C%22description%22%3A%22%E8%A8%98%E5%B8%B3%E6%98%AF%E7%82%BA%E4%BA%86%E4%B8%8D%E9%9C%80%E5%86%8D%E8%A8%98%E5%B8%B3%E3%80%82%E7%94%A8%E6%95%B8%E6%93%9A%EF%BC%8C%E6%8F%9B%E5%8F%96%E4%BD%A0%E5%80%91%E5%AE%B6%E5%BA%AD%E7%9A%84%E8%B2%A1%E5%8B%99%E8%87%AA%E7%94%B1%E3%80%82%22%2C%22start_url%22%3A%22%2F%3Fv%3D116%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f6f9%22%2C%22theme_color%22%3A%22%230288d1%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fjackysystem-familyaccount.vercel.app%2Ficon-192.png%3Fv%3D116%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fjackysystem-familyaccount.vercel.app%2Ficon.png%3Fv%3D116%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">>
+  <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22JJ%E5%AE%B6%E5%BA%AD%E8%A8%98%E5%B8%B3%E7%B3%BB%E7%B5%B1%22%2C%22short_name%22%3A%22JJ%E5%AE%B6%E5%BA%AD%E8%A8%98%E5%B8%B3%E7%B3%BB%E7%B5%B1%22%2C%22description%22%3A%22%E8%A8%98%E5%B8%B3%E6%98%AF%E7%82%BA%E4%BA%86%E4%B8%8D%E9%9C%80%E5%86%8D%E8%A8%98%E5%B8%B3%E3%80%82%E7%94%A8%E6%95%B8%E6%93%9A%EF%BC%8C%E6%8F%9B%E5%8F%96%E4%BD%A0%E5%80%91%E5%AE%B6%E5%BA%AD%E7%9A%84%E8%B2%A1%E5%8B%99%E8%87%AA%E7%94%B1%E3%80%82%22%2C%22start_url%22%3A%22%2F%3Fv%3D116%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f6f9%22%2C%22theme_color%22%3A%22%230288d1%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fjackysystem-familyaccount.vercel.app%2Ficon-192.png%3Fv%3D116%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fjackysystem-familyaccount.vercel.app%2Ficon.png%3Fv%3D116%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%22%7D%5D%7D">
   
   <title>JJ家庭記帳系統</title>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
@@ -153,6 +153,10 @@
     .setting-list { margin: 10px 0; padding: 0; list-style: none; display: block; }
     /* 🔧 改為垂直列表：原本是橫向標籤雲，刪除鈕只有 13x21px、35 個項目密集排列，
        誤觸就直接寫進資料庫。垂直排列才放得下 44px 的觸控目標與「使用中筆數」。 */
+    /* 🔧 品項名稱允許折成兩行再截斷。原本 nowrap + ellipsis，像
+       「中信_公(更新E-tag代扣)」這種長名稱一律看不到後半段。 */
+    .clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; white-space: normal; word-break: break-all; line-height: 1.35; }
     .setting-list li { background: #fff; padding: 4px 6px 4px 12px; border-radius: 8px; font-size: 14px;
       display: flex; align-items: center; gap: 4px; border: 1px solid #eee; margin-bottom: 6px; }
     .setting-list .s-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -922,6 +926,9 @@
       });
   }
 
+  // 卡費為什麼不算進支出總額——這個規則不解釋的話，看到總支出對不上會以為是 bug
+  const CARD_NOT_COUNTED_WHY = '卡費不計入支出加總：卡費是信用卡帳單的還款，而帳單裡的每一筆消費你已經各自記過帳了。若把卡費也算進去，同一筆錢會被計算兩次。';
+
   const emojiMap = { "食": "🍔 食", "衣": "👕 衣", "住": "🏠 住", "行": "🚗 行", "育": "📚 育", "樂": "🎮 樂", "貸款": "🏦 貸款", "捐贈": "🤝 捐贈", "醫藥": "💊 醫藥", "保險": "🛡️ 保險", "稅金": "📄 稅金", "工作": "💼 工作", "卡費": "💳 卡費" };
   const predefinedColors = { "食": "#f44336", "衣": "#ff4081", "住": "#3f51b5", "行": "#03a9f4", "育": "#009688", "樂": "#fbc02d", "貸款": "#9c27b0", "捐贈": "#ff9800", "醫藥": "#e91e63", "保險": "#2196f3", "稅金": "#607d8b", "工作": "#8bc34a", "卡費": "#9e9e9e" };
   const getColor = (cat) => { if (predefinedColors[cat]) return predefinedColors[cat]; const palette = ["#ff5722", "#673ab7", "#3f51b5", "#00bcd4", "#4caf50", "#cddc39", "#ffc107", "#795548", "#607d8b", "#e91e63", "#009688"]; let hash = 0; for(let i=0; i<cat.length; i++) hash = cat.charCodeAt(i) + ((hash << 5) - hash); return palette[Math.abs(hash) % palette.length]; };
@@ -1266,7 +1273,13 @@
           if (ax < SWIPE_DETECT_THRESHOLD && ay < SWIPE_DETECT_THRESHOLD) return;
           // 🔧 水平要「明顯」大於垂直才算換頁：手指自然滑動幾乎都帶一點斜角，
           //    原本只比 ax > ay，稍微斜一點就被判成捲動，換頁常常吃不到
-          if (ax > ay * SWIPE_DIRECTION_RATIO) { _swipePhase = 'swiping'; }
+          if (ax > ay * SWIPE_DIRECTION_RATIO) {
+              _swipePhase = 'swiping';
+              // 🔧 換頁時把鍵盤收起來：手機上鍵盤佔掉半個螢幕，滑過去也看不到內容。
+              //    要輸入時再點欄位就會重新彈出。
+              const ae = document.activeElement;
+              if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) ae.blur();
+          }
           else {
               _swipePhase = 'scrolling';
               _swipeView.classList.remove('swipe-active');
@@ -1944,9 +1957,11 @@
           if (dPrev) notes.push(`${P.prevLabel}的${name}含單筆「${escapeHtml(dPrev.item)}」$${dPrev.amount.toLocaleString()}`);
           else if (dCur) notes.push(`本期${name}含單筆「${escapeHtml(dCur.item)}」$${dCur.amount.toLocaleString()}`);
       });
-      const noteHtml = notes.length
-          ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:11px; color:#999; line-height:1.6;">💡 ${notes.join('；')}，比例落差主要來自這裡</div>`
-          : '';
+      const noteHtml =
+          (notes.length
+            ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:11px; color:#999; line-height:1.6;">💡 ${notes.join('；')}，比例落差主要來自這裡</div>`
+            : '')
+          + `<div style="margin-top:6px; font-size:11px; color:#aaa; line-height:1.6;">ⓘ ${CARD_NOT_COUNTED_WHY}</div>`;
 
       box.innerHTML =
           bar('收入', cur.income, (cur.income / max) * 100, '#43a047', deltaHtml(cur.income, prev.income)) +
@@ -2156,7 +2171,7 @@
 
   window.renderLists = () => {
     let expDisplay = cloudRecords.filter(r => (r.type === 'expense' || r.type === '支出') && !r.isExpected && r.category !== '分類' && r.category !== '卡費').sort(sortByDateDescThenCreatedAsc);
-    document.getElementById('recent-expense-list').innerHTML = expDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(emojiMap[r.category] || r.category)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.method)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-expense">-$${r.amount.toLocaleString()}</div><div class="action-icons"><span title="修改" onclick="triggerEdit('${r.id}')">✏️</span><span class="act-del" title="刪除" onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
+    document.getElementById('recent-expense-list').innerHTML = expDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div class="clamp2"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px; white-space:nowrap;">${escapeHtml(emojiMap[r.category] || r.category)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.method)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-expense">-$${r.amount.toLocaleString()}</div><div class="action-icons"><span title="修改" onclick="triggerEdit('${r.id}')">✏️</span><span class="act-del" title="刪除" onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
     
     const listStart = document.getElementById('exp-list-start').value; const listEnd = document.getElementById('exp-list-end').value;
     let expected = cloudRecords.filter(r => (r.type === 'expense' || r.type === '支出') && r.isExpected);
@@ -2180,7 +2195,7 @@
     
     document.getElementById('expected-list').innerHTML = expected.map(r => {
       const catDisplay = emojiMap[r.category] || r.category;
-      const cardLabel = r.category === '卡費' ? '<span style="font-size:11px; color:#d32f2f; background:#ffebee; padding:2px 5px; border-radius:4px; margin-left:4px; white-space:nowrap;">不計</span>' : '';
+      const cardLabel = r.category === '卡費' ? `<span title="${CARD_NOT_COUNTED_WHY}" onclick="event.stopPropagation(); showToast('${CARD_NOT_COUNTED_WHY}')" style="font-size:11px; color:#d32f2f; background:#ffebee; padding:2px 5px; border-radius:4px; margin-left:4px; white-space:nowrap; cursor:help;">不計 ⓘ</span>` : '';
       // 📱 排版與支出／收入清單一致：單行、同樣的欄寬節奏。
       //    原本操作圖示自成一行，每筆吃掉 103px，一屏只看得到 6 筆。
       //    結清鍵改成純圖示（文字「結清」在窄螢幕會把整列擠爆），靠 title 與顏色表意。
@@ -2188,8 +2203,8 @@
       <div class="list-item">
         <button class="btn-settle" title="這筆已經付款了，按這裡結清" onclick="settleExpected('${r.id}')"><span class="st-icon">✓</span><span class="st-text">結清</span></button>
         <div style="flex:1; min-width:0; overflow:hidden;">
-          <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-            <b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(catDisplay)}</span>${cardLabel}
+          <div class="clamp2">
+            <b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px; white-space:nowrap;">${escapeHtml(catDisplay)}</span>${cardLabel}
           </div>
           <div style="display:flex; align-items:baseline; gap:4px; font-size:12px; color:#666;">
             <span style="color:#e65100; font-weight:bold; flex-shrink:0;">${r.dueDate || r.date}</span>
@@ -2204,7 +2219,7 @@
       </div>`}).join('');
 
     let incDisplay = cloudRecords.filter(r => (r.type === 'income' || r.type === '收入')).sort(sortByDateDescThenCreatedAsc);
-    document.getElementById('recent-income-list').innerHTML = incDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(r.receiver)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.payer)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-income">+$${r.amount.toLocaleString()}</div><div class="action-icons"><span title="修改" onclick="triggerEdit('${r.id}')">✏️</span><span class="act-del" title="刪除" onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
+    document.getElementById('recent-income-list').innerHTML = incDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div class="clamp2"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px; white-space:nowrap;">${escapeHtml(r.receiver)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.payer)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-income">+$${r.amount.toLocaleString()}</div><div class="action-icons"><span title="修改" onclick="triggerEdit('${r.id}')">✏️</span><span class="act-del" title="刪除" onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
   };
 
   function refreshAll() {
