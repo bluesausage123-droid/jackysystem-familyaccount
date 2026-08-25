@@ -40,11 +40,11 @@
 
     /* 導航列：sticky 也要避開瀏海 */
     .tabs { display: flex; background: #fcfcf8; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden; margin-bottom: 15px; position: sticky; top: 10px; top: calc(10px + env(safe-area-inset-top)); z-index: 100; }
-    .tab { flex: 1; text-align: center; padding: 10px 2px; cursor: pointer; font-weight: bold; background: #f9f9f9; color: #777; transition: 0.3s; font-size: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;}
+    .tab { flex: 1; text-align: center; padding: 10px 2px; cursor: pointer; font-weight: bold; background: #f9f9f9; color: #777; transition: background 0.25s, color 0.25s; font-size: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;}
     .tab.active { background: #fcfcf8; color: #0288d1; border-bottom: 4px solid #0288d1; }
     
     /* 卡片與核心元件樣式 */
-    .card { background: #fcfcf8; padding: 12px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 12px; transition: 0.3s; }
+    .card { background: #fcfcf8; padding: 12px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 12px; transition: box-shadow 0.3s, background 0.3s; }
     /* 🔧 表單標題列：把「收起」做進標題右側，展開狀態就不必再佔一整行按鈕（省 54px） */
     .form-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .btn-collapse { background: transparent; color: #0288d1; border: 1px solid #b3e5fc; box-shadow: none;
@@ -54,7 +54,7 @@
     .row > div { flex: 1; min-width: 130px; }
     label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 13px; color: #666; }
     input, select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; outline: none; background-color: #fff; }
-    button { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; }
+    button { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.15s, background 0.2s, box-shadow 0.2s; }
     button:active { transform: scale(0.97); }
     
     /* 終極網格：直 2 欄 */
@@ -94,7 +94,7 @@
     .custom-date-btn { background: transparent; color: #777; font-size: 12px; border: 1px solid #ccc; padding: 4px 8px; margin-left: 10px; width: auto; box-shadow: none;}
     
     .toggle-box { display: flex; background: #eee; border-radius: 8px; margin-bottom: 15px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
-    .toggle-box button { flex: 1; padding: 12px 5px; background: transparent; color: #777; box-shadow: none; border-radius: 0; font-size: 15px; font-weight: normal; transition: 0.2s;}
+    .toggle-box button { flex: 1; padding: 12px 5px; background: transparent; color: #777; box-shadow: none; border-radius: 0; font-size: 15px; font-weight: normal; transition: background 0.2s, color 0.2s;}
     .toggle-box button.active-exp { background: #e53935; color: white; font-weight: bold; }
     .toggle-box button.active-inc { background: #43a047; color: white; font-weight: bold; }
     .toggle-box button.active-trend { background: #0288d1; color: white; font-weight: bold; }
@@ -181,7 +181,9 @@
     /* 🔧 滑動分頁：給瀏覽器提示讓水平手勢交給 JS、垂直滾動仍走原生 */
     .view-section { touch-action: pan-y pinch-zoom; }
     .view-section.swipe-active { will-change: transform; backface-visibility: hidden; }
-    .view-section.swipe-snap { transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+    /* 曲線改用 iOS 分頁常見的 (0.32,0.72,0,1)：起步快、收尾乾淨。
+       原本的 easeOutQuint 末端拖得太久，看起來像「還沒到位」。 */
+    .view-section.swipe-snap { transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
     /* carousel：commit 時新舊頁面 absolute 重疊以同時動，呈現「兩張卡片並排」的物理感 */
     .view-section.swipe-carousel { position: absolute; left: 0; right: 0; }
 
@@ -318,8 +320,8 @@
     <div class="card">
       <h3 style="border-left-color:#f57c00;">📝 待繳清單</h3>
       <div class="row" style="background:#fafafa; padding:10px; border-radius:8px;">
-        <div><label>開始日</label><input type="date" id="exp-list-start" onchange="renderLists()"></div>
-        <div><label>結束日</label><input type="date" id="exp-list-end" onchange="renderLists()"></div>
+        <div><label>開始日</label><input type="date" id="exp-list-start" onchange="bumpListVersion()"></div>
+        <div><label>結束日</label><input type="date" id="exp-list-end" onchange="bumpListVersion()"></div>
       </div>
       <div style="background:#fff8e1; border:1px solid #ffe0b2; padding:15px; border-radius:8px; text-align:center; margin:15px 0;">
         <div style="color:#666; font-weight:bold;">區間待繳總計</div>
@@ -662,6 +664,11 @@
   const COL_SETTINGS = "jj_ledger_settings";
 
   let cloudRecords = [];
+  // 換頁卡頓的主因：switchTab 每次都重建三份清單的 innerHTML，即使資料一個字都沒變。
+  // 用版本戳記判斷「資料或清單條件是否真的變過」，沒變就不重畫。
+  // _dataVersion 由 onSnapshot 與會影響清單的條件變更遞增；renderLists 跑完記下當時的版本。
+  let _dataVersion = 0;
+  let _listsRenderedVersion = -1;
   let currentChartMode = 'expense';
   let reportCurrentMonthDate = new Date(); 
   let isReportCustomDate = false;
@@ -920,6 +927,7 @@
             let cleanAmt = parseFloat(String(d.amount).replace(/[^0-9.-]/g, '')) || 0;
             return { id: doc.id, ...d, amount: cleanAmt };
         });
+        _dataVersion++;
         updateHistoryDatalists(); renderLists(); checkReminders();
         // 🔧 防禦：iOS PWA / 冷啟動時 main-app 剛由 display:none 轉 block，
         // innerHTML 寫入後可能未觸發重繪，下一個 frame 再強制 render 一次
@@ -1230,9 +1238,35 @@
       return true;
   }
 
+  // 收尾改由 transitionend 觸發，不再固定等 SWIPE_ANIM_MS + 30ms。
+  // 原本的固定等待有兩個問題：動畫早結束時多空轉 30ms（看起來就是「到位了還卡一下」），
+  // 動畫因掉幀晚結束時又會提前清掉 transform 造成跳動。timeout 只留著當保險
+  // （transitionend 在頁面切到背景等情況可能不會來）。
+  let _swipeFinishPending = null;
+  function _onSnapEnd(el, cb) {
+      let done = false;
+      const finish = () => {
+          if (done) return;
+          done = true;
+          el.removeEventListener('transitionend', onEnd);
+          if (_swipeAnimTimer) { clearTimeout(_swipeAnimTimer); _swipeAnimTimer = 0; }
+          if (_swipeFinishPending === finish) _swipeFinishPending = null;
+          cb();
+      };
+      const onEnd = (e) => { if (e.target === el && e.propertyName === 'transform') finish(); };
+      el.addEventListener('transitionend', onEnd);
+      _swipeAnimTimer = setTimeout(finish, SWIPE_ANIM_MS + 120);
+      _swipeFinishPending = finish;
+      return finish;
+  }
+
   // 清掉所有 pending：滑動開始或結束時都要呼叫
   function _clearSwipePending() {
       if (_swipeRafId) { cancelAnimationFrame(_swipeRafId); _swipeRafId = 0; }
+      // 連續快滑時前一次的換頁還在跑：把它【提前完成】而不是丟掉。
+      // 舊寫法直接 clearTimeout，switchTab 就永遠不會跑，第二次起手會把已經進場的新頁收回去，
+      // 表現就是「滑得快就換不過去」。
+      if (_swipeFinishPending) { const f = _swipeFinishPending; _swipeFinishPending = null; f(); }
       if (_swipeAnimTimer) { clearTimeout(_swipeAnimTimer); _swipeAnimTimer = 0; }
       _releaseNextView();
       // 強制清掉 .view-section 上殘留的 inline style，讓新滑動從乾淨狀態開始
@@ -1362,8 +1396,7 @@
           newView.style.transform = 'translate3d(0, 0, 0)';
           // 交給下面的動畫收尾，不能讓 _releaseNextView 把已經進場的新頁藏回去
           _swipeNextView = null; _swipeNextIdx = -1; _swipeDir = 0;
-          _swipeAnimTimer = setTimeout(() => {
-              _swipeAnimTimer = 0;
+          _onSnapEnd(newView, () => {
               window.switchTab(nextTab);
               oldView.classList.remove('swipe-snap', 'swipe-active', 'swipe-carousel');
               oldView.style.transform = '';
@@ -1371,7 +1404,7 @@
               newView.classList.remove('swipe-snap', 'swipe-active', 'swipe-carousel');
               newView.style.transform = '';
               newView.style.top = '';
-          }, SWIPE_ANIM_MS + 30);
+          });
       } else {
           // 沒過門檻或已在邊界 → 兩頁一起彈回原位
           const v = oldView;
@@ -1382,13 +1415,12 @@
               back.classList.add('swipe-snap');
               back.style.transform = `translate3d(${backDir > 0 ? winW : -winW}px, 0, 0)`;
           }
-          _swipeAnimTimer = setTimeout(() => {
-              _swipeAnimTimer = 0;
+          _onSnapEnd(v, () => {
               v.classList.remove('swipe-snap', 'swipe-active', 'swipe-carousel');
               v.style.transform = '';
               v.style.top = '';
               _releaseNextView(); // 收回並重新藏起來
-          }, SWIPE_ANIM_MS + 30);
+          });
       }
 
       _swipePhase = 'idle';
@@ -2230,9 +2262,12 @@
       document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
       document.getElementById(`view-${n}`).classList.remove('hidden');
       document.getElementById(`tab-${n}`).classList.add('active');
-      if(n==='stats') window.updateCharts();
-      // 🔧 修正：切到任何列表頁都強制重新渲染，解決冷啟動「近期支出」空白 bug
-      if(n==='expected' || n==='expense' || n==='income') window.renderLists();
+      // 圖表必須在可見之後才畫（Google Charts 在 display:none 容器裡會畫成 0 寬），
+      // 但不要跟切頁擠在同一 frame——還給瀏覽器一幀把新頁畫出來。
+      if(n==='stats') requestAnimationFrame(() => window.updateCharts());
+      // 列表頁：資料沒變就不重畫（冷啟動空白 bug 靠的是 onSnapshot 那邊的渲染，
+      // 這裡用版本戳記把重複的那一次省掉）。
+      if((n==='expected' || n==='expense' || n==='income') && _listsRenderedVersion !== _dataVersion) window.renderLists();
       const filterPanel = document.getElementById('stat-filter-panel');
       if(filterPanel && n !== 'stats') filterPanel.classList.add('hidden');
   };
@@ -2258,6 +2293,9 @@
       if (hasTimeA && !hasTimeB) return 1;  // b 剛新增，排前
       return 0; // 兩者皆 pending，維持原順序
   };
+
+  // 清單的篩選條件（日期區間）也算「資料變了」，否則改完條件切頁會被版本檢查跳過。
+  window.bumpListVersion = () => { _dataVersion++; window.renderLists(); };
 
   window.renderLists = () => {
     let expDisplay = cloudRecords.filter(r => (r.type === 'expense' || r.type === '支出') && !r.isExpected && r.category !== '分類' && r.category !== '卡費').sort(sortByDateDescThenCreatedAsc);
@@ -2310,6 +2348,7 @@
 
     let incDisplay = cloudRecords.filter(r => (r.type === 'income' || r.type === '收入')).sort(sortByDateDescThenCreatedAsc);
     document.getElementById('recent-income-list').innerHTML = incDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div class="clamp2"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px; white-space:nowrap;">${escapeHtml(r.receiver)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.payer)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-income">+$${r.amount.toLocaleString()}</div><div class="action-icons"><span title="修改" onclick="triggerEdit('${r.id}')">✏️</span><span class="act-del" title="刪除" onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
+    _listsRenderedVersion = _dataVersion;
   };
 
   function refreshAll() {
