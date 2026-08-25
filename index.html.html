@@ -188,9 +188,10 @@
 
     /* 🔧 滑動分頁：給瀏覽器提示讓水平手勢交給 JS、垂直滾動仍走原生 */
     .view-section { touch-action: pan-y pinch-zoom; }
-    /* 輸入框也要讓出水平手勢，否則按住欄位往旁邊拖會被瀏覽器當成拖曳游標／選字，
-       touchmove 根本送不到我們手上——使用者回報的「按住輸入框不能左右滑」。 */
-    .view-section input, .view-section textarea { touch-action: pan-y; }
+    /* 表單欄位都要讓出水平手勢，否則按住欄位往旁邊拖會被瀏覽器自己接走
+       （文字欄位當成拖游標／選字，下拉當成自己的手勢），touchmove 送不到我們手上——
+       使用者回報的「按住輸入框／收款方式不能左右滑」。 */
+    .view-section input, .view-section textarea, .view-section select { touch-action: pan-y; }
     .view-section.swipe-active { will-change: transform; backface-visibility: hidden; }
     /* 收尾動畫改由 JS 的 rAF 迴圈驅動（見 _runSnap），不再走 CSS transition：
        交棒給 transition 的那一幀畫面會凍住，逐幀量測看到的就是放手瞬間停 1-2 幀。 */
@@ -1388,11 +1389,12 @@
   //    動作中途幀率砍半，比原本那 1-2 幀更明顯。
   // WAAPI 兩邊都避開：不必等 transition 建立，又由合成器驅動。
   const SNAP_EASING = 'cubic-bezier(0.35, 0.5, 0.6, 1)';
-  let _snapAnims = null, _snapFinish = null;
+  let _snapAnims = null, _snapFinish = null, _snapFallback = 0;
 
   // 立刻結束目前的收尾動畫：直接跳到終點再跑 onDone。
   // 連續快滑時用得到——上一次還沒跑完就起手，不能把它丟掉（丟掉會換不過去）。
   function _finishSnapNow() {
+      if (_snapFallback) { clearTimeout(_snapFallback); _snapFallback = 0; }
       if (_snapAnims) {
           _snapAnims.forEach(q => {
               try { q.anim.cancel(); } catch (e) {}
@@ -1427,9 +1429,18 @@
           };
           return { el: q.el, to: q.to, anim };
       });
+      // 保險絲：頁面在背景時動畫是暫停的，onfinish 永遠不會來，
+      // 沒有這條就會卡在動畫中途。時間到就直接把收尾補完。
+      _snapFallback = setTimeout(() => { _snapFallback = 0; _finishSnapNow(); }, dur + 200);
       // 舊瀏覽器沒有 WAAPI：直接跳到終點，寧可不動畫也不要卡在半路
       if (!_snapAnims.length || typeof pairs[0].el.animate !== 'function') _finishSnapNow();
   }
+
+  // 切到背景時動畫會暫停，onfinish 永遠不會來，頁面就卡在動畫中途。
+  // 回到前景時使用者會看到半張頁面停在那裡——直接把收尾補完。
+  document.addEventListener('visibilitychange', () => {
+      if (document.hidden) _finishSnapNow();
+  });
 
   // 清掉所有 pending：滑動開始或結束時都要呼叫
   function _clearSwipePending() {
@@ -1458,15 +1469,16 @@
   // 哪些地方不接管左右滑。原本把 input / button / 所有圖表都排除掉，
   // 等於整個表單區與整頁報表都滑不動——使用者的感受就是「不是每個位置都有用」。
   // 只留真正會被搶走手勢的：
-  //   - select 與 range：本來就吃水平拖曳
+  //   - range 滑桿：它的操作本身就是水平拖曳
   //   - 建議選單、彈窗：自己有捲動
-  // 文字欄位（含聚焦中的）刻意不排除：使用者要的是按住輸入框也能左右滑。
-  // 代價是欄位裡拖曳選字會被換頁接手，但那在手機上本來就很少用。
+  // 文字欄位與 select 都刻意不排除：使用者要的是按住任何欄位都能左右滑。
+  // select 只靠點擊開選單，不吃水平拖曳，接管過來不影響它；
+  // 文字欄位的代價是拖曳選字會被換頁接手，手機上本來就很少用。
   //   - 任何真的能水平捲動的容器（表格、橫向清單）
   // 點擊完全不受影響：純點擊不會產生 touchmove，判定不到滑動。
   const _isExcludedTarget = (target) => {
       if (!target || !target.closest) return false;
-      if (target.closest('select, input[type="range"], .suggestion-popup, .modal-overlay')) return true;
+      if (target.closest('input[type="range"], .suggestion-popup, .modal-overlay')) return true;
       // 往上找有沒有可水平捲動的祖先，有的話讓它自己處理
       for (let el = target; el && el !== document.body; el = el.parentElement) {
           if (el.scrollWidth - el.clientWidth > 8) {
