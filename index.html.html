@@ -379,7 +379,7 @@
 
         <div id="stat-filter-panel" class="card" style="background:#f4f9f9; padding: 10px 15px; border: 1px solid #e0f2f1;">
           <div id="filter-head" onclick="toggleFilterPanel()" style="font-size: 13px; font-weight: bold; color: #00897b; cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
-            <span>🎯 多維度交叉篩選<span id="filter-badge" style="display:none; margin-left:6px; background:#00897b; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px;"></span></span>
+            <span>🔍 篩選<span id="filter-badge" style="display:none; margin-left:6px; background:#00897b; color:#fff; border-radius:10px; padding:1px 7px; font-size:11px;"></span></span>
             <span style="font-size:12px; font-weight:normal; color:#00897b;"><span id="filter-caret-text">展開</span> <span id="filter-caret">▼</span></span>
           </div>
           <div id="filter-body" class="hidden" style="margin-top:8px;">
@@ -1971,21 +1971,19 @@
             <div style="height:100%; width:${pct}%; background:${color}; border-radius:4px;"></div>
           </div>
         </div>`;
-      // 只在變化幅度大到會誤導時才提示，平常不要多這一行雜訊
-      const notes = [];
+      // 只在變化幅度大到會誤導時才提示，平常不要多這一行雜訊。
+      // 只挑金額最大的那一筆講——列兩三筆反而沒人看。
       const bigChange = (a, b) => b && Math.abs((a - b) / b) >= 0.5;
-      [['收入', true, cur.income, prev.income], ['支出', false, cur.expense, prev.expense]].forEach(([name, isInc, c, pv]) => {
+      let dominant = null;
+      [[true, cur.income, prev.income], [false, cur.expense, prev.expense]].forEach(([isInc, c, pv]) => {
           if (!bigChange(c, pv)) return;
-          const dPrev = findDominantItem(P.prevStart, P.prevEnd, isInc);
-          const dCur = findDominantItem(P.start, P.end, isInc);
-          if (dPrev) notes.push(`${P.prevLabel}的${name}含單筆「${escapeHtml(dPrev.item)}」$${dPrev.amount.toLocaleString()}`);
-          else if (dCur) notes.push(`本期${name}含單筆「${escapeHtml(dCur.item)}」$${dCur.amount.toLocaleString()}`);
+          const found = findDominantItem(P.prevStart, P.prevEnd, isInc) || findDominantItem(P.start, P.end, isInc);
+          if (found && (!dominant || found.amount > dominant.amount)) dominant = found;
       });
-      const noteHtml =
-          (notes.length
-            ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:11px; color:#999; line-height:1.6;">💡 ${notes.join('；')}，比例落差主要來自這裡</div>`
-            : '')
-          + `<div style="margin-top:6px; font-size:11px; color:#aaa; line-height:1.6;">ⓘ ${CARD_NOT_COUNTED_WHY}</div>`;
+      // 卡費的說明不放報表（那是規則不是分析），留在待繳清單的「不計 ⓘ」徽章上
+      const noteHtml = dominant
+          ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #eee; font-size:13px; color:#777; line-height:1.5;">💡 落差主因：${escapeHtml(dominant.item)} $${dominant.amount.toLocaleString()}</div>`
+          : '';
 
       box.innerHTML =
           bar('收入', cur.income, (cur.income / max) * 100, '#43a047', deltaHtml(cur.income, prev.income)) +
