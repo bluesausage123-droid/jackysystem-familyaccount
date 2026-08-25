@@ -69,9 +69,17 @@
     .btn-toggle-form { background: transparent; color: #0288d1; box-shadow: none; border: 1px dashed #0288d1; padding: 8px; margin-bottom: 15px; }
     .list-item { display: flex; justify-content: space-between; padding: 12px 5px; border-bottom: 1px solid #eee; align-items: center; gap: 5px; }
     .val-expense { color: #e53935; font-weight: bold; font-size: 15px; white-space: nowrap; }
-    .val-expected { color: #f57c00; font-weight: bold; font-size: 15px; white-space: nowrap; }
+    .val-expected { color: #f57c00; font-weight: bold; font-size: 14px; white-space: nowrap; }
     .val-income { color: #43a047; font-weight: bold; font-size: 15px; white-space: nowrap; }
-    .action-icons { display: flex; gap: 6px; font-size: 16px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    /* 🔧 觸控目標：原本圖示只有 22x21px、兩個中心相距 28px，成年人指腹接觸面約 40-45px，
+       一根手指會同時蓋住編輯與刪除。改為每個 44x44（Apple HIG 建議值），中間再拉開間距。
+       圖案本身維持 16px，放大的是可點範圍，所以視覺上不會變笨重。 */
+    .action-icons { display: flex; gap: 8px; font-size: 16px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .action-icons span { display: inline-flex; align-items: center; justify-content: center;
+      width: 44px; height: 44px; border-radius: 10px; -webkit-tap-highlight-color: rgba(0,0,0,.08); }
+    .action-icons span:active { background: rgba(0,0,0,.07); }
+    /* 刪除鍵獨立標記：加一點左邊界，跟編輯鍵之間有明確的視覺斷點 */
+    .action-icons span.act-del { margin-left: 0; }
     .hidden { display: none !important; }
     
     .chart-container { width: 100%; height: 300px; margin-top: 10px; margin-bottom: 10px; }
@@ -95,7 +103,16 @@
     .progress-bg { background: #eee; height: 6px; border-radius: 4px; overflow: hidden; margin-top: 6px; }
     .progress-fill { height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
     .acc-item { padding: 10px 15px; border-bottom: 1px dashed #e0e0e0; display: flex; justify-content: space-between; align-items: center; font-size: 14px;}
-    .btn-settle { background: #43a047; color: white; border: none; padding: 6px 8px; border-radius: 6px; margin-right: 8px; font-size: 13px; font-weight: bold; cursor: pointer; width: auto; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    /* 🔧 結清鍵：原本 74x33 帶文字，單行排版會把品項擠到沒空間；但純圖示又看不出是
+       「已經付款了就按這裡」。折衷成 48x44 直式：上圖示下文字，維持觸控面積也保住語意。 */
+    .btn-settle { background: #43a047; color: white; border: none; padding: 0; border-radius: 10px;
+      margin-right: 8px; line-height: 1.1; cursor: pointer; flex-shrink: 0;
+      width: 48px; height: 44px; display: inline-flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .btn-settle .st-icon { font-size: 15px; }
+    .btn-settle .st-text { font-size: 10px; font-weight: bold; letter-spacing: .5px; }
+    .btn-settle:active { background: #2e7d32; }
     .btn-mini-renew { background: #fff3e0; color: #e65100; border: 1px solid #ffb74d; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; width: auto; box-shadow: none; margin-right: 4px; white-space: nowrap; }
     .btn-mini-renew:active { background: #ffe0b2; transform: scale(0.96); }
     /* 結束方式二選一切換 */
@@ -368,12 +385,6 @@
   </div>
 
   <div id="view-settings" class="view-section hidden">
-    <div class="card" style="border: 2px solid #e53935; background: #ffebee;">
-      <h3 style="border-left-color: #e53935;">🔒 帳號安全</h3>
-      <p style="font-size: 13px; color: #666; margin-top:0;">此裝置已綁定金鑰，若需切換帳號或更換設備請登出。</p>
-      <button onclick="handleLogout()" style="background:#e53935;">🚪 登出系統</button>
-    </div>
-
     <div class="card" style="border: 2px solid #1976d2; background: #e3f2fd;">
       <h3 style="border-left-color: #1976d2;">📥 資料備份與匯出</h3>
       <button onclick="exportCSV()" style="background:#1976d2;">📥 一鍵匯出所有紀錄</button>
@@ -386,7 +397,15 @@
     </div>
 
     <div class="card"><h3>⚙️ 全家同步設定管理</h3><div id="settings-container"></div></div>
-    
+
+    <!-- 🔧 登出移到最下方並改成低調樣式：這是最少用、誤觸代價最高的操作
+         （登出後要重新輸入密碼），原本卻放在設定頁最上方、用最搶眼的大紅按鈕。 -->
+    <div class="card" style="background: #fafafa; border: 1px solid #e0e0e0;">
+      <h3 style="border-left-color: #9e9e9e; color: #757575;">🔒 帳號</h3>
+      <p style="font-size: 13px; color: #888; margin-top:0;">此裝置已綁定金鑰，若需切換帳號或更換設備才需要登出。</p>
+      <button onclick="handleLogout()" style="background:#fff; color:#c62828; border:1px solid #ef9a9a; box-shadow:none;">🚪 登出系統</button>
+    </div>
+
     <div style="text-align: center; padding: 20px; font-size: 12px; color: #aaa;" id="app-version-2"></div>
   </div>
 </div>
@@ -959,7 +978,7 @@
 
       const renderList = (filterStart, filterEnd, labelStr) => {
           const details = allDrilldownRecords.filter(r => r.date >= filterStart && r.date <= filterEnd); let total = 0;
-          const listHtml = details.map(r => { total += r.amount; const methodOrPayer = currentChartMode === 'expense' ? r.method : r.payer; return `<div class="acc-item"><div style="flex:1; min-width:0; padding-right:10px;"><div style="font-weight:bold; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(r.item)}</div><div style="font-size:12px; color:#888;">${r.date} | ${escapeHtml(methodOrPayer || '無')}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><span style="font-weight:bold; color:${currentChartMode==='expense'?'#e53935':'#43a047'}; margin-right:8px; font-size:15px;">$${r.amount.toLocaleString()}</span><span class="action-icons" style="font-size:16px;"><span onclick="triggerEdit('${r.id}', '${escAttr(catName)}')">✏️</span><span onclick="closeDrilldown(); deleteRecord('${r.id}')">🗑️</span></span></div></div>`; }).join('');
+          const listHtml = details.map(r => { total += r.amount; const methodOrPayer = currentChartMode === 'expense' ? r.method : r.payer; return `<div class="acc-item"><div style="flex:1; min-width:0; padding-right:10px;"><div style="font-weight:bold; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(r.item)}</div><div style="font-size:12px; color:#888;">${r.date} | ${escapeHtml(methodOrPayer || '無')}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><span style="font-weight:bold; color:${currentChartMode==='expense'?'#e53935':'#43a047'}; margin-right:8px; font-size:15px;">$${r.amount.toLocaleString()}</span><span class="action-icons" style="font-size:16px;"><span title="修改" onclick="triggerEdit('${r.id}', '${escAttr(catName)}')">✏️</span><span class="act-del" title="刪除" onclick="closeDrilldown(); deleteRecord('${r.id}')">🗑️</span></span></div></div>`; }).join('');
           document.getElementById('drilldown-range-label').innerText = labelStr; document.getElementById('drilldown-total-val').innerText = `$${total.toLocaleString()}`; document.getElementById('drilldown-total-val').style.color = currentChartMode === 'expense' ? '#e53935' : '#43a047'; document.getElementById('drilldown-list-container').innerHTML = listHtml || '<div style="text-align:center;color:#999;padding:20px;">此月份無明細記錄。</div>';
       };
 
@@ -1831,7 +1850,19 @@
           const dataTable = google.visualization.arrayToDataTable(pieArr);
           pieChartObj = new google.visualization.PieChart(document.getElementById('top_chart_div'));
           google.visualization.events.addListener(pieChartObj, 'select', function() { const selection = pieChartObj.getSelection(); if (selection.length > 0) { const catName = dataTable.getValue(selection[0].row, 0); window.openDrilldown(catName); pieChartObj.setSelection([]); } });
-          pieChartObj.draw(dataTable, { pieHole: 0.5, colors: sliceColors, legend: 'none', chartArea: { left: '10%', top: 10, width: '80%', height: '90%' }, sliceVisibilityThreshold: 0, tooltip: { trigger: 'none' } });
+          // 🔧 原本只顯示百分比，看到 23.3% 卻不知道是哪一類，得往下捲對照顏色。
+          //    先試過 legend:'labeled'（引線標在外側），但 390px 寬放不下標籤，
+          //    Google Charts 會只畫引線、不畫文字，反而更難懂。
+          //    改成把分類名畫進切片裡：中文分類只有 1-2 字（住／食／保險），比 23.3% 還短，
+          //    大切片放得下，小切片 Google Charts 會自動略過。百分比與金額下方明細都有。
+          //    不做「小額合併成其他」，因為點擊切片要用分類名做 drilldown，合併後會查不到。
+          pieChartObj.draw(dataTable, {
+              pieHole: 0.5, colors: sliceColors, legend: 'none',
+              pieSliceText: 'label',
+              pieSliceTextStyle: { fontSize: 13, bold: true },
+              chartArea: { left: '10%', top: 10, width: '80%', height: '90%' },
+              sliceVisibilityThreshold: 0, tooltip: { trigger: 'none' }
+          });
       }
 
       let leaderboardHtml = '';
@@ -1919,7 +1950,7 @@
 
   window.renderLists = () => {
     let expDisplay = cloudRecords.filter(r => (r.type === 'expense' || r.type === '支出') && !r.isExpected && r.category !== '分類' && r.category !== '卡費').sort(sortByDateDescThenCreatedAsc);
-    document.getElementById('recent-expense-list').innerHTML = expDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(emojiMap[r.category] || r.category)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.method)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-expense">-$${r.amount.toLocaleString()}</div><div class="action-icons"><span onclick="triggerEdit('${r.id}')">✏️</span><span onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
+    document.getElementById('recent-expense-list').innerHTML = expDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(emojiMap[r.category] || r.category)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.method)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-expense">-$${r.amount.toLocaleString()}</div><div class="action-icons"><span title="修改" onclick="triggerEdit('${r.id}')">✏️</span><span class="act-del" title="刪除" onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
     
     const listStart = document.getElementById('exp-list-start').value; const listEnd = document.getElementById('exp-list-end').value;
     let expected = cloudRecords.filter(r => (r.type === 'expense' || r.type === '支出') && r.isExpected);
@@ -1929,30 +1960,31 @@
     
     document.getElementById('expected-list').innerHTML = expected.map(r => {
       const catDisplay = emojiMap[r.category] || r.category;
-      const cardLabel = r.category === '卡費' ? '<span style="color:#d32f2f; margin-left:4px; font-weight:bold;">(不計支出)</span>' : '';
-      // 📱 iOS 窄螢幕優化：改為兩行排版，避免結清+項目+金額+續期+編輯+刪除擠在同一列爆版
+      const cardLabel = r.category === '卡費' ? '<span style="font-size:11px; color:#d32f2f; background:#ffebee; padding:2px 5px; border-radius:4px; margin-left:4px; white-space:nowrap;">不計</span>' : '';
+      // 📱 排版與支出／收入清單一致：單行、同樣的欄寬節奏。
+      //    原本操作圖示自成一行，每筆吃掉 103px，一屏只看得到 6 筆。
+      //    結清鍵改成純圖示（文字「結清」在窄螢幕會把整列擠爆），靠 title 與顏色表意。
       return `
-      <div class="list-item" style="flex-direction:column; align-items:stretch; gap:6px; padding:12px 5px;">
-        <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-          <button class="btn-settle" style="margin-right:0;" onclick="settleExpected('${r.id}')">✅ 結清</button>
-          <div style="flex:1; min-width:0; overflow:hidden;">
-            <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              <b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(catDisplay)}</span>
-            </div>
-            <div style="font-size:12px; color:#666; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-              <span style="color:#e65100; font-weight:bold;">${r.dueDate || r.date}</span> · ${escapeHtml(r.method || '無')} ${cardLabel}
-            </div>
+      <div class="list-item">
+        <button class="btn-settle" title="這筆已經付款了，按這裡結清" onclick="settleExpected('${r.id}')"><span class="st-icon">✓</span><span class="st-text">結清</span></button>
+        <div style="flex:1; min-width:0; overflow:hidden;">
+          <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            <b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(catDisplay)}</span>${cardLabel}
           </div>
-          <div class="val-expected" style="flex-shrink:0;">-$${r.amount.toLocaleString()}</div>
+          <div style="display:flex; align-items:baseline; gap:4px; font-size:12px; color:#666;">
+            <span style="color:#e65100; font-weight:bold; flex-shrink:0;">${r.dueDate || r.date}</span>
+            <span style="flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(r.method || '無')}</span>
+            <span class="val-expected" style="flex-shrink:0;">-$${r.amount.toLocaleString()}</span>
+          </div>
         </div>
-        <div style="display:flex; gap:10px; justify-content:flex-end; align-items:center;">
-          <span title="修改 / 續期" style="font-size:20px; cursor:pointer; padding:4px 10px;" onclick="triggerEdit('${r.id}')">✏️</span>
-          <span title="刪除" style="font-size:20px; cursor:pointer; padding:4px 10px;" onclick="deleteRecord('${r.id}')">🗑️</span>
+        <div class="action-icons">
+          <span title="修改 / 續期" onclick="triggerEdit('${r.id}')">✏️</span>
+          <span class="act-del" title="刪除" onclick="deleteRecord('${r.id}')">🗑️</span>
         </div>
       </div>`}).join('');
 
     let incDisplay = cloudRecords.filter(r => (r.type === 'income' || r.type === '收入')).sort(sortByDateDescThenCreatedAsc);
-    document.getElementById('recent-income-list').innerHTML = incDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(r.receiver)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.payer)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-income">+$${r.amount.toLocaleString()}</div><div class="action-icons"><span onclick="triggerEdit('${r.id}')">✏️</span><span onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
+    document.getElementById('recent-income-list').innerHTML = incDisplay.slice(0, 15).map(r => `<div class="list-item"><div style="flex:1; min-width:0; overflow:hidden;"><div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><b>${escapeHtml(r.item)}</b> <span style="font-size:11px; color:#888; background:#eee; padding:2px 4px; border-radius:4px;">${escapeHtml(r.receiver)}</span></div><div style="font-size:12px; color:#666; white-space:nowrap;">${r.date} | ${escapeHtml(r.payer)}</div></div><div style="display:flex; align-items:center; flex-shrink:0;"><div class="val-income">+$${r.amount.toLocaleString()}</div><div class="action-icons"><span title="修改" onclick="triggerEdit('${r.id}')">✏️</span><span class="act-del" title="刪除" onclick="deleteRecord('${r.id}')">🗑️</span></div></div></div>`).join('');
   };
 
   function refreshAll() {
