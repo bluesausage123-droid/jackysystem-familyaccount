@@ -29,6 +29,9 @@
     /* 🔧 iOS 安全區：避開瀏海/Dynamic Island/底部 home indicator
        (含舊版瀏覽器 fallback：先寫純值，再寫 calc(env())，不支援者會回退到第一個) */
     .container {
+      /* 滑動中的頁面用 absolute 疊在這上面，定位基準必須是這裡，
+         否則會算到 body 去、忽略下面那圈內距（見 _applyCarouselBox）。 */
+      position: relative;
       max-width: 650px; margin: 0 auto;
       padding: 15px;
       padding-bottom: 90px;
@@ -185,18 +188,24 @@
 
     /* 🔧 滑動分頁：給瀏覽器提示讓水平手勢交給 JS、垂直滾動仍走原生 */
     .view-section { touch-action: pan-y pinch-zoom; }
+    /* 輸入框也要讓出水平手勢，否則按住欄位往旁邊拖會被瀏覽器當成拖曳游標／選字，
+       touchmove 根本送不到我們手上——使用者回報的「按住輸入框不能左右滑」。 */
+    .view-section input, .view-section textarea { touch-action: pan-y; }
     .view-section.swipe-active { will-change: transform; backface-visibility: hidden; }
     /* 收尾動畫改由 JS 的 rAF 迴圈驅動（見 _runSnap），不再走 CSS transition：
        交棒給 transition 的那一幀畫面會凍住，逐幀量測看到的就是放手瞬間停 1-2 幀。 */
-    /* carousel：commit 時新舊頁面 absolute 重疊以同時動，呈現「兩張卡片並排」的物理感 */
-    .view-section.swipe-carousel { position: absolute; left: 0; right: 0; }
+    /* carousel：commit 時新舊頁面 absolute 重疊以同時動，呈現「兩張卡片並排」的物理感。
+       left/right 由 JS 依容器內距設定，不能寫死 0——寫死的話滑動中的頁面是滿版寬，
+       回到流程裡又縮回內距內，到位瞬間整頁往旁邊跳一段、文字還跟著重排。
+       那就是逐幀量到「每次滑完最後一幀往回跳 34px」的來源。 */
+    .view-section.swipe-carousel { position: absolute; }
     /* 相鄰分頁「停放」：不用 display:none，讓它保持已排版狀態。
        display:none 的子樹完全沒有 box，手指一動才 remove hidden 就得整棵重建 layout，
        那一幀的成本就是「起手頓一下」。改用 visibility 藏起來，layout 早就算好了。
        height:0 + overflow:hidden 是必要的：absolute 元素仍會撐大捲動範圍，
        停放的頁比當前頁高時，畫面下方會多出一段捲不完的空白。 */
     .view-section.view-parked {
-      position: absolute; left: 0; right: 0;
+      position: absolute;   /* left/right 同樣由 _applyCarouselBox 設定 */
       visibility: hidden; pointer-events: none;
       height: 0; overflow: hidden;
     }
@@ -1270,17 +1279,30 @@
       const vIdx = TAB_ORDER.indexOf(view.id.replace('view-', ''));
       return vIdx >= 0 && vIdx !== idx && Math.abs(vIdx - idx) === 1;
   };
+  // 讓 absolute 的頁面佔到跟「在流程裡」完全一樣的框：
+  // 絕對定位的基準是容器的 padding box，所以 left/right 要補上容器的內距
+  // （內距含 safe-area，橫置或不同機型都會變，必須每次量）。
+  const _applyCarouselBox = (el, topPx) => {
+      const box = document.querySelector('.container');
+      if (box) {
+          const cs = getComputedStyle(box);
+          el.style.left = cs.paddingLeft;
+          el.style.right = cs.paddingRight;
+      }
+      if (topPx != null) el.style.top = topPx + 'px';
+  };
+
   const _parkView = (view, topPx) => {
       if (!view) return;
       view.classList.remove('hidden', 'swipe-active', 'swipe-carousel', 'swipe-snap');
       view.style.transform = '';
-      view.style.top = (topPx != null ? topPx : 0) + 'px';
       view.classList.add('view-parked');
+      _applyCarouselBox(view, topPx != null ? topPx : 0);
   };
   const _unparkAll = () => {
       document.querySelectorAll('.view-section.view-parked').forEach(v => {
           v.classList.remove('view-parked');
-          v.style.top = '';
+          v.style.top = ''; v.style.left = ''; v.style.right = '';
           v.classList.add('hidden');
       });
   };
@@ -1300,7 +1322,7 @@
           if (v === cur) return;
           if (keep.includes(v)) _parkView(v, top);
           else if (v.classList.contains('view-parked')) {
-              v.classList.remove('view-parked'); v.style.top = ''; v.classList.add('hidden');
+              v.classList.remove('view-parked'); v.style.top = ''; v.style.left = ''; v.style.right = ''; v.classList.add('hidden');
           }
       });
   };
@@ -1316,7 +1338,7 @@
       if (_swipeNextView) {
           _swipeNextView.classList.remove('swipe-active', 'swipe-carousel', 'swipe-snap');
           _swipeNextView.style.transform = '';
-          _swipeNextView.style.top = '';
+          _swipeNextView.style.top = ''; _swipeNextView.style.left = ''; _swipeNextView.style.right = '';
           // 收回去時要重新藏起來，但「它剛好已經是當前分頁」的情況不能藏（換頁成功後會走到這）。
           // 用當前 active tab 判斷，不用 index 比較：touchstart 清場時 _swipeIdx 還是上一輪的值。
           const activeEl = document.querySelector('.tab.active');
@@ -1340,7 +1362,7 @@
       // 沒停放到的（例如剛啟動還沒排到）才走原本 display:none → block 的路。
       nextView.classList.remove('hidden', 'swipe-snap', 'view-parked');
       nextView.classList.add('swipe-active', 'swipe-carousel');
-      nextView.style.top = _swipeView.offsetTop + 'px';
+      _applyCarouselBox(nextView, _swipeView.offsetTop);
       nextView.style.transform = `translate3d(${direction > 0 ? window.innerWidth : -window.innerWidth}px, 0, 0)`;
       // 🔧 強制 reflow 讓「剛解除停放 + 初始位置」確實生效。
       //    少了這行，瀏覽器可能把改可見、設起始位置、加 transition、改位置合併成同一
@@ -1426,7 +1448,7 @@
           const parked = v.classList.contains('view-parked');
           if (v.style.transform) v.style.transform = '';
           if (v.style.transitionDuration) v.style.transitionDuration = '';
-          if (!parked && v.style.top) v.style.top = '';
+          if (!parked) { v.style.top = ''; v.style.left = ''; v.style.right = ''; }
           v.classList.remove('swipe-snap');
           if (!parked) v.classList.remove('swipe-active');
           v.classList.remove('swipe-carousel');
@@ -1437,15 +1459,14 @@
   // 等於整個表單區與整頁報表都滑不動——使用者的感受就是「不是每個位置都有用」。
   // 只留真正會被搶走手勢的：
   //   - select 與 range：本來就吃水平拖曳
-  //   - 正在輸入中的文字欄位：這時水平拖是在移動游標／選字
   //   - 建議選單、彈窗：自己有捲動
+  // 文字欄位（含聚焦中的）刻意不排除：使用者要的是按住輸入框也能左右滑。
+  // 代價是欄位裡拖曳選字會被換頁接手，但那在手機上本來就很少用。
   //   - 任何真的能水平捲動的容器（表格、橫向清單）
   // 點擊完全不受影響：純點擊不會產生 touchmove，判定不到滑動。
   const _isExcludedTarget = (target) => {
       if (!target || !target.closest) return false;
       if (target.closest('select, input[type="range"], .suggestion-popup, .modal-overlay')) return true;
-      const ae = document.activeElement;
-      if (ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName) && target.closest('input, textarea') === ae) return true;
       // 往上找有沒有可水平捲動的祖先，有的話讓它自己處理
       for (let el = target; el && el !== document.body; el = el.parentElement) {
           if (el.scrollWidth - el.clientWidth > 8) {
@@ -1587,7 +1608,7 @@
               window.switchTab(nextTab);
               [oldView, newView].forEach(v => {
                   v.classList.remove('swipe-active', 'swipe-carousel');
-                  v.style.transform = ''; v.style.top = '';
+                  v.style.transform = ''; v.style.top = ''; v.style.left = ''; v.style.right = '';
               });
           });
       } else {
@@ -1603,7 +1624,7 @@
           _runSnap(pairs, durBack, () => {
               v.classList.remove('swipe-active', 'swipe-carousel');
               v.style.transform = '';
-              v.style.top = '';
+              v.style.top = ''; v.style.left = ''; v.style.right = '';
               _releaseNextView(); // 收回並重新藏起來
           });
       }
@@ -2482,7 +2503,7 @@
       document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
       const shown = document.getElementById(`view-${n}`);
       shown.classList.remove('hidden', 'view-parked', 'swipe-active', 'swipe-carousel', 'swipe-snap');
-      shown.style.top = ''; shown.style.transform = '';
+      shown.style.top = ''; shown.style.left = ''; shown.style.right = ''; shown.style.transform = '';
       document.getElementById(`tab-${n}`).classList.add('active');
       // 圖表必須在可見之後才畫（Google Charts 在 display:none 容器裡會畫成 0 寬），
       // 而且要排到閒置再畫：排在下一幀的話，正好卡在動畫剛結束、眼睛還在追動作的時候。
