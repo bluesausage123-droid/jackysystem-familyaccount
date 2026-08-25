@@ -181,9 +181,14 @@
     /* 🔧 滑動分頁：給瀏覽器提示讓水平手勢交給 JS、垂直滾動仍走原生 */
     .view-section { touch-action: pan-y pinch-zoom; }
     .view-section.swipe-active { will-change: transform; backface-visibility: hidden; }
-    /* 曲線改用 iOS 分頁常見的 (0.32,0.72,0,1)：起步快、收尾乾淨。
-       原本的 easeOutQuint 末端拖得太久，看起來像「還沒到位」。 */
-    .view-section.swipe-snap { transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
+    /* 曲線是「噸」的主因，逐幀量過才確定：
+       easeOutQuint (0.22,1,0.36,1) 與 (0.32,0.72,0,1) 都是重尾——時間走一半時
+       距離已經完成 95%以上，最後 20% 的時間只走 0.5% 的距離。影片實測正是
+       「前 100ms 走 148px、後 120ms 只走 25px」，看起來就是衝過去之後黏著慢慢貼齊。
+       (0.35,0.5,0.6,1)：t=.5 走 71%、最後 20% 還留 4.4% 可走，尾巴不黏；
+       起始斜率也比舊曲線平緩，放手時不會突然彈射（舊的初速是手指速度的數倍）。
+       時長改由 JS 依「剩餘距離 ÷ 手指速度」動態決定，這裡的 0.2s 只是保底值。 */
+    .view-section.swipe-snap { transition: transform 0.2s cubic-bezier(0.35, 0.5, 0.6, 1); }
     /* carousel：commit 時新舊頁面 absolute 重疊以同時動，呈現「兩張卡片並排」的物理感 */
     .view-section.swipe-carousel { position: absolute; left: 0; right: 0; }
     /* 相鄰分頁「停放」：不用 display:none，讓它保持已排版狀態。
@@ -1202,7 +1207,16 @@
   const SWIPE_DETECT_THRESHOLD = 10;
   const SWIPE_DIRECTION_RATIO = 1.2; // 水平位移要明顯大於垂直，才算換頁而非捲動
   const SWIPE_RESISTANCE = 0.35;
-  const SWIPE_ANIM_MS = 220;
+  const SWIPE_ANIM_MS = 200;      // 保底值；實際時長見 _snapDuration
+  const SWIPE_ANIM_MIN = 120;     // 再短就看不出是滑過去的
+  const SWIPE_ANIM_MAX = 260;
+  // 放手後還要走多遠、手指當時多快，決定動畫要多久。
+  // 固定 220ms 的問題：拖了大半才放手時剩沒幾十 px，還是硬跑滿 220ms，
+  // 尾巴就顯得又慢又黏；快速輕彈時又反過來，動畫比手指慢半拍。
+  const _snapDuration = (remain, velocity) => {
+      const v = Math.max(velocity, 0.6); // px/ms，太慢就當 0.6 免得算出離譜的長度
+      return Math.round(Math.min(SWIPE_ANIM_MAX, Math.max(SWIPE_ANIM_MIN, remain / v)));
+  };
   const SWIPE_FLICK_VELOCITY = 0.3;  // px/ms，輕彈就換頁的速度門檻
   // 輕彈也要有最低位移，否則手指快速微動（20px / 40ms 就超過速度門檻）會誤換頁
   const SWIPE_FLICK_MIN_DISTANCE = 30;
@@ -1211,6 +1225,9 @@
 
   let _swipePhase = 'idle';
   let _swipeStartX = 0, _swipeStartY = 0, _swipeStartT = 0;
+  // 放手當下的瞬時速度：整段的平均速度會被「先慢慢拖、最後一甩」那種手勢拉低，
+  // 拿來決定動畫長度會太慢。這裡做輕度平滑，避免單一 touchmove 的抖動主導。
+  let _swipeLastX = 0, _swipeLastT = 0, _swipeVel = 0;
   let _swipeView = null, _swipeDx = 0, _swipeIdx = -1;
   // 🆕 拖動中同步移動的下一頁
   let _swipeNextView = null, _swipeNextIdx = -1, _swipeDir = 0;
@@ -1322,7 +1339,7 @@
   // 動畫因掉幀晚結束時又會提前清掉 transform 造成跳動。timeout 只留著當保險
   // （transitionend 在頁面切到背景等情況可能不會來）。
   let _swipeFinishPending = null;
-  function _onSnapEnd(el, cb) {
+  function _onSnapEnd(el, dur, cb) {
       let done = false;
       const finish = () => {
           if (done) return;
@@ -1334,7 +1351,7 @@
       };
       const onEnd = (e) => { if (e.target === el && e.propertyName === 'transform') finish(); };
       el.addEventListener('transitionend', onEnd);
-      _swipeAnimTimer = setTimeout(finish, SWIPE_ANIM_MS + 120);
+      _swipeAnimTimer = setTimeout(finish, (dur || SWIPE_ANIM_MS) + 120);
       _swipeFinishPending = finish;
       return finish;
   }
@@ -1354,6 +1371,7 @@
       document.querySelectorAll('.view-section').forEach(v => {
           const parked = v.classList.contains('view-parked');
           if (v.style.transform) v.style.transform = '';
+          if (v.style.transitionDuration) v.style.transitionDuration = '';
           if (!parked && v.style.top) v.style.top = '';
           v.classList.remove('swipe-snap');
           if (!parked) v.classList.remove('swipe-active');
@@ -1400,6 +1418,7 @@
       _swipeView = document.getElementById(`view-${currentTab}`);
       if (!_swipeView) return;
       _swipeStartX = t.clientX; _swipeStartY = t.clientY; _swipeStartT = Date.now();
+      _swipeLastX = t.clientX; _swipeLastT = _swipeStartT; _swipeVel = 0;
       _swipeDx = 0;
       _swipePhase = 'pending';
       _swipeView.classList.remove('swipe-snap');
@@ -1445,6 +1464,11 @@
       const atRightEdge = _swipeIdx === TAB_ORDER.length - 1 && dx < 0;
       if (atLeftEdge || atRightEdge) effectiveDx = dx * SWIPE_RESISTANCE;
       _swipeDx = effectiveDx;
+      const nowT = Date.now(), dtv = nowT - _swipeLastT;
+      if (dtv > 0) {
+          _swipeVel = _swipeVel * 0.6 + ((t.clientX - _swipeLastX) / dtv) * 0.4;
+          _swipeLastX = t.clientX; _swipeLastT = nowT;
+      }
       _scheduleTransform(effectiveDx); // rAF 節流
   }, { passive: false });
 
@@ -1472,35 +1496,40 @@
 
       if (canSwipe) {
           // 兩頁同步 transition 到定位；switchTab 延後到動畫結束，避免 renderLists 卡住 compositor
+          const dur = _snapDuration(winW - Math.abs(dx), Math.abs(_swipeVel));
           oldView.classList.add('swipe-snap');
+          oldView.style.transitionDuration = dur + 'ms';
           oldView.style.transform = `translate3d(${direction > 0 ? -winW : winW}px, 0, 0)`;
           newView.classList.add('swipe-snap');
+          newView.style.transitionDuration = dur + 'ms';
           newView.style.transform = 'translate3d(0, 0, 0)';
           // 交給下面的動畫收尾，不能讓 _releaseNextView 把已經進場的新頁藏回去
           _swipeNextView = null; _swipeNextIdx = -1; _swipeDir = 0;
-          _onSnapEnd(newView, () => {
+          _onSnapEnd(newView, dur, () => {
               window.switchTab(nextTab);
-              oldView.classList.remove('swipe-snap', 'swipe-active', 'swipe-carousel');
-              oldView.style.transform = '';
-              oldView.style.top = '';
-              newView.classList.remove('swipe-snap', 'swipe-active', 'swipe-carousel');
-              newView.style.transform = '';
-              newView.style.top = '';
+              [oldView, newView].forEach(v => {
+                  v.classList.remove('swipe-snap', 'swipe-active', 'swipe-carousel');
+                  v.style.transform = ''; v.style.top = ''; v.style.transitionDuration = '';
+              });
           });
       } else {
           // 沒過門檻或已在邊界 → 兩頁一起彈回原位
           const v = oldView;
           const back = _swipeNextView; const backDir = _swipeDir;
+          const durBack = _snapDuration(Math.abs(dx), Math.abs(_swipeVel));
           v.classList.add('swipe-snap');
+          v.style.transitionDuration = durBack + 'ms';
           v.style.transform = 'translate3d(0, 0, 0)';
           if (back) {
               back.classList.add('swipe-snap');
+              back.style.transitionDuration = durBack + 'ms';
               back.style.transform = `translate3d(${backDir > 0 ? winW : -winW}px, 0, 0)`;
           }
-          _onSnapEnd(v, () => {
+          _onSnapEnd(v, durBack, () => {
               v.classList.remove('swipe-snap', 'swipe-active', 'swipe-carousel');
               v.style.transform = '';
               v.style.top = '';
+              v.style.transitionDuration = '';
               _releaseNextView(); // 收回並重新藏起來
           });
       }
@@ -1525,6 +1554,7 @@
               _swipeAnimTimer = 0;
               v.classList.remove('swipe-snap');
               v.classList.remove('swipe-active');
+              v.style.transitionDuration = '';
               _releaseNextView();
           }, SWIPE_ANIM_MS + 30);
       } else {
