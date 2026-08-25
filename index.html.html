@@ -1433,9 +1433,27 @@
       });
   }
 
+  // 哪些地方不接管左右滑。原本把 input / button / 所有圖表都排除掉，
+  // 等於整個表單區與整頁報表都滑不動——使用者的感受就是「不是每個位置都有用」。
+  // 只留真正會被搶走手勢的：
+  //   - select 與 range：本來就吃水平拖曳
+  //   - 正在輸入中的文字欄位：這時水平拖是在移動游標／選字
+  //   - 建議選單、彈窗：自己有捲動
+  //   - 任何真的能水平捲動的容器（表格、橫向清單）
+  // 點擊完全不受影響：純點擊不會產生 touchmove，判定不到滑動。
   const _isExcludedTarget = (target) => {
       if (!target || !target.closest) return false;
-      return !!target.closest('input, select, textarea, button, .chart-container, #top_chart_div, #trend_chart_div, #drilldown_chart_div, .suggestion-popup, .modal-overlay');
+      if (target.closest('select, input[type="range"], .suggestion-popup, .modal-overlay')) return true;
+      const ae = document.activeElement;
+      if (ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName) && target.closest('input, textarea') === ae) return true;
+      // 往上找有沒有可水平捲動的祖先，有的話讓它自己處理
+      for (let el = target; el && el !== document.body; el = el.parentElement) {
+          if (el.scrollWidth - el.clientWidth > 8) {
+              const ov = getComputedStyle(el).overflowX;
+              if (ov === 'auto' || ov === 'scroll') return true;
+          }
+      }
+      return false;
   };
 
   function _applyTransform() {
@@ -2287,8 +2305,40 @@
       _filterPanelInitialized = true;
   };
 
+  // 換頁結束時每次都重畫 Google Charts，是「最後抖動」的一個確定來源：
+  // 那是動畫剛結束、眼睛還在追動作的那一刻，主執行緒卻被圖表重繪佔住。
+  // 頁面只是被藏起來、沒有被銷毀，圖表 SVG 都還在，資料與條件沒變就不必重畫。
+  let _chartsKey = '';
+  const _chartsStateKey = () => [
+      _dataVersion, currentChartMode, isReportCustomDate,
+      reportCurrentMonthDate.getFullYear(), reportCurrentMonthDate.getMonth(),
+      document.getElementById('filter-category')?.value,
+      document.getElementById('filter-person')?.value,
+      document.getElementById('filter-method')?.value,
+      document.getElementById('stat-keyword')?.value,
+      document.getElementById('stat-start')?.value,
+      document.getElementById('stat-end')?.value,
+      window.innerWidth  // 轉向或改變視窗寬度時圖表要重新量尺寸
+  ].join('|');
+  // 外部要強制重畫時用（例如手動重整）
+  window.invalidateCharts = () => { _chartsKey = ''; };
+
   window.updateCharts = () => {
       if(!google.visualization) return;
+      // 報表頁不可見時不畫：Google Charts 在藏起來的容器裡會量到 0 寬，
+      // 畫出來是壞的又會被記成「已畫過」。順手把 key 作廢，回到報表頁時重畫。
+      const _sv = document.getElementById('view-stats');
+      if (_sv && (_sv.classList.contains('hidden') || _sv.classList.contains('view-parked'))) {
+          _chartsKey = '';
+          return;
+      }
+      const key = _chartsStateKey();
+      if (key === _chartsKey) return;   // 什麼都沒變，畫出來的會一模一樣
+      _chartsKey = key;
+      // updateCharts 自己會重建篩選下拉，選項值可能因此被補成「全部」，
+      // 讓下一次算出來的 key 跟這次不同、白白多畫一次。
+      // 等這次同步流程跑完再記一次 key，抓到的就是穩定後的狀態。
+      Promise.resolve().then(() => { if (_chartsKey === key) _chartsKey = _chartsStateKey(); });
       window.renderSummary();
       window.updateFilterBadge();
       if (currentChartMode !== 'trend') {
@@ -2435,8 +2485,11 @@
       shown.style.top = ''; shown.style.transform = '';
       document.getElementById(`tab-${n}`).classList.add('active');
       // 圖表必須在可見之後才畫（Google Charts 在 display:none 容器裡會畫成 0 寬），
-      // 但不要跟切頁擠在同一 frame——還給瀏覽器一幀把新頁畫出來。
-      if(n==='stats') requestAnimationFrame(() => window.updateCharts());
+      // 而且要排到閒置再畫：排在下一幀的話，正好卡在動畫剛結束、眼睛還在追動作的時候。
+      if(n==='stats') {
+          if (window.requestIdleCallback) requestIdleCallback(() => window.updateCharts(), { timeout: 400 });
+          else setTimeout(() => window.updateCharts(), 120);
+      }
       // 列表頁：資料沒變就不重畫（冷啟動空白 bug 靠的是 onSnapshot 那邊的渲染，
       // 這裡用版本戳記把重複的那一次省掉）。
       if((n==='expected' || n==='expense' || n==='income') && _listsRenderedVersion !== _dataVersion) window.renderLists();
