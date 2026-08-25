@@ -1287,7 +1287,7 @@
   let _parkScheduled = 0;
   window._parkNeighbors = () => {
       _parkScheduled = 0;
-      if (_swipePhase === 'swiping' || _snapRaf) return; // 滑動或收尾動畫進行中不動它
+      if (_swipePhase === 'swiping' || _snapAnims) return; // 滑動或收尾動畫進行中不動它
       // 還沒登入時 main-app 是 display:none，量到的 offsetTop 全是 0，停放位置會錯
       const app = document.getElementById('main-app');
       if (!app || app.style.display === 'none') return;
@@ -1356,16 +1356,27 @@
   // 全程只有一種寫入方式（每幀寫 transform），就沒有交棒，也沒有那一幀空窗。
   // 緩動用 1-(1-t)² ：與先前挑的 cubic-bezier(0.35,0.5,0.6,1) 幾乎重疊
   // （中點 75% vs 71%、尾巴 4.5% vs 4.4%），但不必在每幀解貝茲曲線。
-  const _ease = (t) => 1 - (1 - t) * (1 - t);
-  let _snapRaf = 0, _snapFinish = null, _snapPairs = null;
+  // 收尾動畫走 Web Animations API：跑在合成器上，幀率跟著螢幕（120Hz 機種就是 120fps）。
+  //
+  // 走過的兩條錯路，別再回頭：
+  // 1. CSS transition：放手瞬間要先建立 transition 的動畫機制，那一幀畫面是凍住的，
+  //    量到的就是「停 1-2 幀才開始動」。
+  // 2. 主執行緒 rAF 自己算每幀：沒有空窗了，但 Android Chrome 的 rAF 只給到 60Hz——
+  //    拖動時 8-9ms/幀（120fps）、放手後變 16-17ms/幀（60fps），
+  //    動作中途幀率砍半，比原本那 1-2 幀更明顯。
+  // WAAPI 兩邊都避開：不必等 transition 建立，又由合成器驅動。
+  const SNAP_EASING = 'cubic-bezier(0.35, 0.5, 0.6, 1)';
+  let _snapAnims = null, _snapFinish = null;
 
   // 立刻結束目前的收尾動畫：直接跳到終點再跑 onDone。
   // 連續快滑時用得到——上一次還沒跑完就起手，不能把它丟掉（丟掉會換不過去）。
   function _finishSnapNow() {
-      if (_snapRaf) { cancelAnimationFrame(_snapRaf); _snapRaf = 0; }
-      if (_snapPairs) {
-          _snapPairs.forEach(q => { q.el.style.transform = `translate3d(${q.to}px, 0, 0)`; });
-          _snapPairs = null;
+      if (_snapAnims) {
+          _snapAnims.forEach(q => {
+              try { q.anim.cancel(); } catch (e) {}
+              q.el.style.transform = `translate3d(${q.to}px, 0, 0)`;
+          });
+          _snapAnims = null;
       }
       const f = _snapFinish; _snapFinish = null;
       if (f) f();
@@ -1373,20 +1384,29 @@
 
   function _runSnap(pairs, dur, onDone) {
       _finishSnapNow();               // 保險：不讓兩個收尾動畫同時跑
-      _snapPairs = pairs; _snapFinish = onDone;
-      const t0 = performance.now();
-      const step = (now) => {
-          const t = Math.min(1, (now - t0) / dur);
-          const e = _ease(t);
-          pairs.forEach(q => {
-              q.el.style.transform = `translate3d(${q.from + (q.to - q.from) * e}px, 0, 0)`;
-          });
-          if (t < 1) { _snapRaf = requestAnimationFrame(step); return; }
-          _snapRaf = 0; _snapPairs = null;
-          const f = _snapFinish; _snapFinish = null;
-          if (f) f();
-      };
-      _snapRaf = requestAnimationFrame(step);
+      _snapFinish = onDone;
+      let pending = pairs.length;
+      _snapAnims = pairs.map(q => {
+          // 先把起點寫成 inline style：動畫被中斷時畫面才不會跳回舊位置
+          q.el.style.transform = `translate3d(${q.from}px, 0, 0)`;
+          const anim = q.el.animate(
+              [{ transform: `translate3d(${q.from}px, 0, 0)` },
+               { transform: `translate3d(${q.to}px, 0, 0)` }],
+              { duration: dur, easing: SNAP_EASING, fill: 'both' }
+          );
+          anim.onfinish = () => {
+              if (!_snapAnims) return;             // 已經被 _finishSnapNow 收掉
+              q.el.style.transform = `translate3d(${q.to}px, 0, 0)`;
+              try { anim.cancel(); } catch (e) {}  // 收掉 fill，交還 inline style
+              if (--pending > 0) return;
+              _snapAnims = null;
+              const f = _snapFinish; _snapFinish = null;
+              if (f) f();
+          };
+          return { el: q.el, to: q.to, anim };
+      });
+      // 舊瀏覽器沒有 WAAPI：直接跳到終點，寧可不動畫也不要卡在半路
+      if (!_snapAnims.length || typeof pairs[0].el.animate !== 'function') _finishSnapNow();
   }
 
   // 清掉所有 pending：滑動開始或結束時都要呼叫
