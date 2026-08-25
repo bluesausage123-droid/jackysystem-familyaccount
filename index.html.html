@@ -186,14 +186,8 @@
     /* 🔧 滑動分頁：給瀏覽器提示讓水平手勢交給 JS、垂直滾動仍走原生 */
     .view-section { touch-action: pan-y pinch-zoom; }
     .view-section.swipe-active { will-change: transform; backface-visibility: hidden; }
-    /* 曲線是「噸」的主因，逐幀量過才確定：
-       easeOutQuint (0.22,1,0.36,1) 與 (0.32,0.72,0,1) 都是重尾——時間走一半時
-       距離已經完成 95%以上，最後 20% 的時間只走 0.5% 的距離。影片實測正是
-       「前 100ms 走 148px、後 120ms 只走 25px」，看起來就是衝過去之後黏著慢慢貼齊。
-       (0.35,0.5,0.6,1)：t=.5 走 71%、最後 20% 還留 4.4% 可走，尾巴不黏；
-       起始斜率也比舊曲線平緩，放手時不會突然彈射（舊的初速是手指速度的數倍）。
-       時長改由 JS 依「剩餘距離 ÷ 手指速度」動態決定，這裡的 0.2s 只是保底值。 */
-    .view-section.swipe-snap { transition: transform 0.2s cubic-bezier(0.35, 0.5, 0.6, 1); }
+    /* 收尾動畫改由 JS 的 rAF 迴圈驅動（見 _runSnap），不再走 CSS transition：
+       交棒給 transition 的那一幀畫面會凍住，逐幀量測看到的就是放手瞬間停 1-2 幀。 */
     /* carousel：commit 時新舊頁面 absolute 重疊以同時動，呈現「兩張卡片並排」的物理感 */
     .view-section.swipe-carousel { position: absolute; left: 0; right: 0; }
     /* 相鄰分頁「停放」：不用 display:none，讓它保持已排版狀態。
@@ -1293,7 +1287,7 @@
   let _parkScheduled = 0;
   window._parkNeighbors = () => {
       _parkScheduled = 0;
-      if (_swipePhase === 'swiping' || _swipeFinishPending) return; // 滑動中不動它
+      if (_swipePhase === 'swiping' || _snapRaf) return; // 滑動或收尾動畫進行中不動它
       // 還沒登入時 main-app 是 display:none，量到的 offsetTop 全是 0，停放位置會錯
       const app = document.getElementById('main-app');
       if (!app || app.style.display === 'none') return;
@@ -1356,26 +1350,43 @@
       return true;
   }
 
-  // 收尾改由 transitionend 觸發，不再固定等 SWIPE_ANIM_MS + 30ms。
-  // 原本的固定等待有兩個問題：動畫早結束時多空轉 30ms（看起來就是「到位了還卡一下」），
-  // 動畫因掉幀晚結束時又會提前清掉 transform 造成跳動。timeout 只留著當保險
-  // （transitionend 在頁面切到背景等情況可能不會來）。
-  let _swipeFinishPending = null;
-  function _onSnapEnd(el, dur, cb) {
-      let done = false;
-      const finish = () => {
-          if (done) return;
-          done = true;
-          el.removeEventListener('transitionend', onEnd);
-          if (_swipeAnimTimer) { clearTimeout(_swipeAnimTimer); _swipeAnimTimer = 0; }
-          if (_swipeFinishPending === finish) _swipeFinishPending = null;
-          cb();
+  // 放手後的動畫改成「同一個 rAF 迴圈繼續跑」，不再交棒給 CSS transition。
+  // 逐幀量測抓到的抖動就在交棒這一刻：影片裡放手當下畫面固定停 1-2 幀（8-17ms）
+  // 才開始動——瀏覽器要先建立 transition 的動畫機制，那一幀畫面是凍住的。
+  // 全程只有一種寫入方式（每幀寫 transform），就沒有交棒，也沒有那一幀空窗。
+  // 緩動用 1-(1-t)² ：與先前挑的 cubic-bezier(0.35,0.5,0.6,1) 幾乎重疊
+  // （中點 75% vs 71%、尾巴 4.5% vs 4.4%），但不必在每幀解貝茲曲線。
+  const _ease = (t) => 1 - (1 - t) * (1 - t);
+  let _snapRaf = 0, _snapFinish = null, _snapPairs = null;
+
+  // 立刻結束目前的收尾動畫：直接跳到終點再跑 onDone。
+  // 連續快滑時用得到——上一次還沒跑完就起手，不能把它丟掉（丟掉會換不過去）。
+  function _finishSnapNow() {
+      if (_snapRaf) { cancelAnimationFrame(_snapRaf); _snapRaf = 0; }
+      if (_snapPairs) {
+          _snapPairs.forEach(q => { q.el.style.transform = `translate3d(${q.to}px, 0, 0)`; });
+          _snapPairs = null;
+      }
+      const f = _snapFinish; _snapFinish = null;
+      if (f) f();
+  }
+
+  function _runSnap(pairs, dur, onDone) {
+      _finishSnapNow();               // 保險：不讓兩個收尾動畫同時跑
+      _snapPairs = pairs; _snapFinish = onDone;
+      const t0 = performance.now();
+      const step = (now) => {
+          const t = Math.min(1, (now - t0) / dur);
+          const e = _ease(t);
+          pairs.forEach(q => {
+              q.el.style.transform = `translate3d(${q.from + (q.to - q.from) * e}px, 0, 0)`;
+          });
+          if (t < 1) { _snapRaf = requestAnimationFrame(step); return; }
+          _snapRaf = 0; _snapPairs = null;
+          const f = _snapFinish; _snapFinish = null;
+          if (f) f();
       };
-      const onEnd = (e) => { if (e.target === el && e.propertyName === 'transform') finish(); };
-      el.addEventListener('transitionend', onEnd);
-      _swipeAnimTimer = setTimeout(finish, (dur || SWIPE_ANIM_MS) + 120);
-      _swipeFinishPending = finish;
-      return finish;
+      _snapRaf = requestAnimationFrame(step);
   }
 
   // 清掉所有 pending：滑動開始或結束時都要呼叫
@@ -1383,9 +1394,9 @@
       if (_swipeRafId) { cancelAnimationFrame(_swipeRafId); _swipeRafId = 0; }
       _clearTabPreview();
       // 連續快滑時前一次的換頁還在跑：把它【提前完成】而不是丟掉。
-      // 舊寫法直接 clearTimeout，switchTab 就永遠不會跑，第二次起手會把已經進場的新頁收回去，
+      // 丟掉的話 switchTab 永遠不會跑，第二次起手會把已經進場的新頁收回去，
       // 表現就是「滑得快就換不過去」。
-      if (_swipeFinishPending) { const f = _swipeFinishPending; _swipeFinishPending = null; f(); }
+      _finishSnapNow();
       if (_swipeAnimTimer) { clearTimeout(_swipeAnimTimer); _swipeAnimTimer = 0; }
       _releaseNextView();
       // 強制清掉 .view-section 上殘留的 inline style，讓新滑動從乾淨狀態開始。
@@ -1504,9 +1515,10 @@
           _swipePhase = 'idle';
           return;
       }
-      // 寫入最終位置（保險）
+      // 起跑點用「最新的」位移：舊寫法只 cancelAnimationFrame，
+      // 還沒寫進畫面的那一幀就被丟掉，動畫等於從落後一格的位置起跑。
       if (_swipeRafId) { cancelAnimationFrame(_swipeRafId); _swipeRafId = 0; }
-      const dx = _swipeDx;
+      const dx = _swipePendingDx || _swipeDx;
       const dt = Date.now() - _swipeStartT;
       const velocity = Math.abs(dx) / Math.max(dt, 1);
       const fastFlick = velocity > SWIPE_FLICK_VELOCITY && Math.abs(dx) >= SWIPE_FLICK_MIN_DISTANCE;
@@ -1525,21 +1537,19 @@
       else _setTabPreview(_swipeNextIdx >= 0 ? _swipeNextIdx : TAB_ORDER.indexOf(nextTab));
 
       if (canSwipe) {
-          // 兩頁同步 transition 到定位；switchTab 延後到動畫結束，避免 renderLists 卡住 compositor
+          // 兩頁一起跑到定位；switchTab 延後到動畫結束，避免 renderLists 卡住畫面
           const dur = _snapDuration(winW - Math.abs(dx), Math.abs(_swipeVel));
-          oldView.classList.add('swipe-snap');
-          oldView.style.transitionDuration = dur + 'ms';
-          oldView.style.transform = `translate3d(${direction > 0 ? -winW : winW}px, 0, 0)`;
-          newView.classList.add('swipe-snap');
-          newView.style.transitionDuration = dur + 'ms';
-          newView.style.transform = 'translate3d(0, 0, 0)';
-          // 交給下面的動畫收尾，不能讓 _releaseNextView 把已經進場的新頁藏回去
+          const newFrom = dx + (direction > 0 ? winW : -winW); // 新頁現在的位置
+          // 交給動畫收尾，不能讓 _releaseNextView 把已經進場的新頁藏回去
           _swipeNextView = null; _swipeNextIdx = -1; _swipeDir = 0;
-          _onSnapEnd(newView, dur, () => {
+          _runSnap([
+              { el: oldView, from: dx,      to: direction > 0 ? -winW : winW },
+              { el: newView, from: newFrom, to: 0 },
+          ], dur, () => {
               window.switchTab(nextTab);
               [oldView, newView].forEach(v => {
-                  v.classList.remove('swipe-snap', 'swipe-active', 'swipe-carousel');
-                  v.style.transform = ''; v.style.top = ''; v.style.transitionDuration = '';
+                  v.classList.remove('swipe-active', 'swipe-carousel');
+                  v.style.transform = ''; v.style.top = '';
               });
           });
       } else {
@@ -1547,19 +1557,15 @@
           const v = oldView;
           const back = _swipeNextView; const backDir = _swipeDir;
           const durBack = _snapDuration(Math.abs(dx), Math.abs(_swipeVel));
-          v.classList.add('swipe-snap');
-          v.style.transitionDuration = durBack + 'ms';
-          v.style.transform = 'translate3d(0, 0, 0)';
+          const pairs = [{ el: v, from: dx, to: 0 }];
           if (back) {
-              back.classList.add('swipe-snap');
-              back.style.transitionDuration = durBack + 'ms';
-              back.style.transform = `translate3d(${backDir > 0 ? winW : -winW}px, 0, 0)`;
+              const backTo = backDir > 0 ? winW : -winW;
+              pairs.push({ el: back, from: dx + backTo, to: backTo });
           }
-          _onSnapEnd(v, durBack, () => {
-              v.classList.remove('swipe-snap', 'swipe-active', 'swipe-carousel');
+          _runSnap(pairs, durBack, () => {
+              v.classList.remove('swipe-active', 'swipe-carousel');
               v.style.transform = '';
               v.style.top = '';
-              v.style.transitionDuration = '';
               _releaseNextView(); // 收回並重新藏起來
           });
       }
@@ -1574,20 +1580,19 @@
       if (_swipeView) {
           const v = _swipeView;
           const back = _swipeNextView; const backDir = _swipeDir;
-          v.classList.add('swipe-snap');
-          v.style.transform = '';
+          const W = window.innerWidth;
+          const cur = _swipePendingDx || _swipeDx || 0;
+          const pairs = [{ el: v, from: cur, to: 0 }];
           // 🆕 中斷時預備中的下一頁也要一起退場，否則會卡在畫面上露出半頁
           if (back) {
-              back.classList.add('swipe-snap');
-              back.style.transform = `translate3d(${backDir > 0 ? window.innerWidth : -window.innerWidth}px, 0, 0)`;
+              const backTo = backDir > 0 ? W : -W;
+              pairs.push({ el: back, from: cur + backTo, to: backTo });
           }
-          _swipeAnimTimer = setTimeout(() => {
-              _swipeAnimTimer = 0;
-              v.classList.remove('swipe-snap');
-              v.classList.remove('swipe-active');
-              v.style.transitionDuration = '';
+          _runSnap(pairs, _snapDuration(Math.abs(cur), Math.abs(_swipeVel)), () => {
+              v.classList.remove('swipe-active', 'swipe-carousel');
+              v.style.transform = '';
               _releaseNextView();
-          }, SWIPE_ANIM_MS + 30);
+          });
       } else {
           _releaseNextView();
       }
