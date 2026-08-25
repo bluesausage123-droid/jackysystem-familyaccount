@@ -482,10 +482,11 @@
 
 <div id="delete-series-modal" class="modal-overlay" style="z-index: 2600;">
   <div class="modal-content">
-    <h3 style="border:none; padding:0; text-align:center; font-size:18px; margin-bottom:10px;">🗑️ 刪除批次紀錄</h3>
-    <p style="font-size:14px; color:#666; margin-top:0; line-height:1.5;">系統偵測到這是一組批次產生的紀錄。<br>請問您要刪除哪部分？</p>
+    <h3 style="border:none; padding:0; text-align:center; font-size:18px; margin-bottom:10px;">🗑️ 刪除待繳紀錄</h3>
+    <p id="delete-series-desc" style="font-size:14px; color:#666; margin-top:0; line-height:1.5;">請問您要刪除哪部分？</p>
     <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
-      <button onclick="executeDeleteSeries('all')" style="background:#e53935; color:white; padding:12px; font-weight:bold; border-radius:8px;">刪除此系列【所有未結清】紀錄</button>
+      <button id="btn-del-series" onclick="executeDeleteSeries('all')" style="background:#e53935; color:white; padding:12px; font-weight:bold; border-radius:8px;">刪除此系列【所有未結清】紀錄</button>
+      <button id="btn-del-forward" onclick="executeDeleteSeries('forward')" style="background:#ad1457; color:white; padding:12px; font-weight:bold; border-radius:8px;">刪除【這筆及往後】同名紀錄</button>
       <button onclick="executeDeleteSeries('single')" style="background:#f57c00; color:white; padding:12px; font-weight:bold; border-radius:8px;">只刪除【這筆】紀錄</button>
       <button onclick="closeDeleteSeries()" style="background:#e0e0e0; color:#333; padding:12px; font-weight:bold; border-radius:8px;">取消</button>
     </div>
@@ -1576,38 +1577,92 @@
   };
 
   let targetDeleteId = null; let targetDeleteGroupId = null;
-  window.deleteRecord = (id) => { 
+
+  // 🆕 「這筆及往後」的圈選範圍：同品項名、同樣是未結清待繳、到期日 >= 這筆。
+  //    日期一律是 YYYY-MM-DD，字串比較即等同日期比較。
+  //    舊資料是一筆筆手動建立的（沒有 groupId），只能靠品項名認親，所以刻意不比對金額——
+  //    房貸這類項目每期金額可能不同，比對金額會漏掉。
+  const collectForwardTargets = (record) => {
+      if (!record) return [];
+      const fromDate = record.dueDate || record.date || '';
+      return cloudRecords.filter(r =>
+          r.isExpected && r.item === record.item && (r.dueDate || r.date || '') >= fromDate
+      );
+  };
+
+  window.deleteRecord = (id) => {
       const record = cloudRecords.find(r => r.id === id);
       const itemName = record?.item ?? '這筆紀錄'; // 🔧 改由 id 反查，不再從 onclick 內插
-      if (record && record.groupId) { targetDeleteId = id; targetDeleteGroupId = record.groupId; document.getElementById('delete-series-modal').classList.add('show'); } 
+      // 🆕 待繳項目一律問範圍（原本只有 groupId 存在時才問，導致舊資料只能一筆筆刪）
+      if (record && record.isExpected) {
+          targetDeleteId = id; targetDeleteGroupId = record.groupId || null;
+          const forwardCount = collectForwardTargets(record).length;
+          const seriesBtn = document.getElementById('btn-del-series');
+          const forwardBtn = document.getElementById('btn-del-forward');
+          const desc = document.getElementById('delete-series-desc');
+          // 有 groupId 才給「整個系列」選項；舊資料沒有這個概念
+          if (record.groupId) {
+              const seriesCount = cloudRecords.filter(r => r.groupId === record.groupId && r.isExpected).length;
+              seriesBtn.style.display = '';
+              seriesBtn.innerText = `刪除此系列【所有未結清】共 ${seriesCount} 筆`;
+          } else {
+              seriesBtn.style.display = 'none';
+          }
+          forwardBtn.innerText = `刪除【這筆及往後】的「${itemName}」共 ${forwardCount} 筆`;
+          forwardBtn.style.display = forwardCount > 1 ? '' : 'none'; // 只有自己一筆時這個選項沒意義
+          desc.innerText = `「${itemName}」到期日 ${record.dueDate || record.date}。請問您要刪除哪部分？`;
+          document.getElementById('delete-series-modal').classList.add('show');
+      }
       else { confirmAction(`刪除紀錄`, `確定要刪除「${itemName}」嗎？\n刪除後無法復原。`, '#e53935', async () => { await deleteDoc(doc(db, "family_ledger_records", id)); showToast("🗑️ 已成功刪除！"); }); }
   };
   window.closeDeleteSeries = () => { document.getElementById('delete-series-modal').classList.remove('show'); targetDeleteId = null; targetDeleteGroupId = null; };
+  // 🔧 用 writeBatch 原子刪除：避免 for + deleteDoc 在中途斷網留下半截系列
+  const batchDeleteRecords = async (records, label) => {
+      try {
+          const BATCH_LIMIT = 500;
+          for (let chunkStart = 0; chunkStart < records.length; chunkStart += BATCH_LIMIT) {
+              const batch = writeBatch(db);
+              const chunkEnd = Math.min(chunkStart + BATCH_LIMIT, records.length);
+              for (let i = chunkStart; i < chunkEnd; i++) {
+                  batch.delete(doc(db, "family_ledger_records", records[i].id));
+              }
+              await batch.commit();
+          }
+          showToast(`🗑️ 已成功刪除 ${records.length} 筆${label}！`);
+      } catch (error) {
+          console.error("批次刪除中斷", error);
+          showToast("⚠️ 網路異常，部分紀錄可能未刪除，請稍後重試");
+      }
+  };
+
   window.executeDeleteSeries = async (mode) => {
-      document.getElementById('delete-series-modal').classList.remove('show'); if (!targetDeleteId) return; showToast("⏳ 刪除中...");
+      document.getElementById('delete-series-modal').classList.remove('show'); if (!targetDeleteId) return;
+      const record = cloudRecords.find(r => r.id === targetDeleteId);
+      const deleteId = targetDeleteId; const groupId = targetDeleteGroupId;
+      // 先清狀態：底下的二次確認是非同步的，不能依賴這兩個變數還活著
+      targetDeleteId = null; targetDeleteGroupId = null;
+
       if (mode === 'single') {
-          await deleteDoc(doc(db, "family_ledger_records", targetDeleteId));
+          showToast("⏳ 刪除中...");
+          await deleteDoc(doc(db, "family_ledger_records", deleteId));
           showToast("🗑️ 已成功刪除單筆紀錄！");
       } else if (mode === 'all') {
-          // 🔧 改用 writeBatch 原子刪除：避免 for + deleteDoc 在中途斷網留下半截系列
-          const groupRecords = cloudRecords.filter(r => r.groupId === targetDeleteGroupId && r.isExpected);
-          try {
-              const BATCH_LIMIT = 500;
-              for (let chunkStart = 0; chunkStart < groupRecords.length; chunkStart += BATCH_LIMIT) {
-                  const batch = writeBatch(db);
-                  const chunkEnd = Math.min(chunkStart + BATCH_LIMIT, groupRecords.length);
-                  for (let i = chunkStart; i < chunkEnd; i++) {
-                      batch.delete(doc(db, "family_ledger_records", groupRecords[i].id));
-                  }
-                  await batch.commit();
-              }
-              showToast(`🗑️ 已成功刪除 ${groupRecords.length} 筆系列紀錄！`);
-          } catch (error) {
-              console.error("批次刪除中斷", error);
-              showToast("⚠️ 網路異常，部分紀錄可能未刪除，請稍後重試");
-          }
+          showToast("⏳ 刪除中...");
+          await batchDeleteRecords(cloudRecords.filter(r => r.groupId === groupId && r.isExpected), '系列紀錄');
+      } else if (mode === 'forward') {
+          // 🆕 這筆及往後的同名待繳：一次可能刪掉很多筆且無法復原，先二次確認
+          const targets = collectForwardTargets(record);
+          if (!targets.length) return showToast("⚠️ 找不到符合的紀錄");
+          const sorted = [...targets].sort((a, b) => ((a.dueDate || a.date) > (b.dueDate || b.date) ? 1 : -1));
+          const first = sorted[0].dueDate || sorted[0].date;
+          const last = sorted[sorted.length - 1].dueDate || sorted[sorted.length - 1].date;
+          confirmAction(
+              `刪除 ${targets.length} 筆「${record.item}」`,
+              `範圍 ${first} ～ ${last}（未結清的待繳）。\n已結清的紀錄不會被刪除。\n刪除後無法復原。`,
+              '#e53935',
+              async () => { showToast("⏳ 刪除中..."); await batchDeleteRecords(targets, `「${record.item}」`); }
+          );
       }
-      targetDeleteId = null; targetDeleteGroupId = null;
   };
 
   window.changeReportMonth = (offset) => {
