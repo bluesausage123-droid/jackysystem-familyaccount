@@ -1009,10 +1009,23 @@
       let start, end, rangeLabel; let endMonthDate; 
       if (isReportCustomDate) { start = document.getElementById('stat-start').value; end = document.getElementById('stat-end').value; rangeLabel = `${start.substring(5)} ~ ${end.substring(5)} 總計`; endMonthDate = new Date(end); } else { const y = reportCurrentMonthDate.getFullYear(); const m = String(reportCurrentMonthDate.getMonth() + 1).padStart(2, '0'); start = `${y}-${m}-01`; const lastDay = new Date(y, reportCurrentMonthDate.getMonth() + 1, 0).getDate(); end = `${y}-${m}-${String(lastDay).padStart(2, '0')}`; rangeLabel = `${y}年${m}月 總計`; endMonthDate = new Date(reportCurrentMonthDate); }
       const fPerson = document.getElementById('filter-person').value; const fMethod = document.getElementById('filter-method').value; const keyword = document.getElementById('stat-keyword').value.trim().toLowerCase();
-      const months = getMonthRange(endMonthDate, 6); // 🔧 同上：避開月底溢位
-      const sixMonthsStart = `${months[0]}-01`; const sixMonthsEnd = `${months[5]}-31`;
+      // 🔧 圖表月數改成跟著報表區間走（6～12 個月）。
+      //    原本固定 6 個月：自訂區間選 01-01~08-25 時，圖只畫 03~08，
+      //    1、2 月的紀錄不但沒進圖，連下方明細也撈不到（明細是從同一份資料篩的）。
+      const monthSpan = (s, e) => {
+          const sd = parseLocalDate(s), ed = parseLocalDate(e);
+          return (ed.getFullYear() - sd.getFullYear()) * 12 + (ed.getMonth() - sd.getMonth()) + 1;
+      };
+      const monthCount = Math.min(12, Math.max(6, monthSpan(start, end)));
+      const months = getMonthRange(endMonthDate, monthCount); // 避開月底溢位
+      const chartStart = `${months[0]}-01`, chartEnd = `${months[months.length - 1]}-31`;
+      // 🔧 撈資料的範圍要涵蓋「圖表月份」與「報表區間」兩者，取聯集。
+      //    只用其中一邊都會漏：報表區間可能比圖表更早（明細空白），
+      //    圖表也可能比區間更早（趨勢線缺一段）。
+      const dataStart = start < chartStart ? start : chartStart;
+      const dataEnd = end > chartEnd ? end : chartEnd;
       const allDrilldownRecords = cloudRecords.filter(r => {
-          if (!(r.date >= sixMonthsStart && r.date <= sixMonthsEnd && !r.isExpected && r.category !== '分類' && r.category !== '卡費')) return false;
+          if (!(r.date >= dataStart && r.date <= dataEnd && !r.isExpected && r.category !== '分類' && r.category !== '卡費')) return false;
           if (currentChartMode === 'expense' && r.category !== catName) return false;
           if (currentChartMode === 'income' && r.receiver !== catName) return false;
           if (fPerson && fPerson !== '全部') { const person = (r.type === 'expense' || r.type === '支出') ? r.payer : (r.receiver || r.payer); if (person !== fPerson) return false; }
@@ -1143,6 +1156,17 @@
           if (!host || !host.contains(e.target)) popup.classList.add('hidden');
       });
   }, true);
+
+  // 🔧 捲動歷史選單時把鍵盤收起來：鍵盤佔掉半個螢幕，選單被壓在上面看不到幾筆。
+  //    選單只在「click 到外部」時關閉、沒有綁 blur，所以收鍵盤不會把選單關掉，
+  //    收完之後版面空間變大，清單一次看得更多。
+  //    用 touchmove 而非 touchstart：單純點選項目不該觸發，真的在捲才收。
+  document.addEventListener('touchmove', (e) => {
+      const target = e.target;
+      if (!target || !target.closest || !target.closest('.suggestion-popup')) return;
+      const ae = document.activeElement;
+      if (ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName)) ae.blur();
+  }, { passive: true, capture: true });
 
   // 🆕 左右滑動切換 5 個分頁（絲滑版 v3：拖動當下就把下一頁帶進來）
   // v2 的問題：拖動時只有目前這頁在動，下一頁要放手後才飛進來，所以拖到一半看到的是
