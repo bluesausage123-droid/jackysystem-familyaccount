@@ -186,6 +186,16 @@
     .view-section.swipe-snap { transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
     /* carousel：commit 時新舊頁面 absolute 重疊以同時動，呈現「兩張卡片並排」的物理感 */
     .view-section.swipe-carousel { position: absolute; left: 0; right: 0; }
+    /* 相鄰分頁「停放」：不用 display:none，讓它保持已排版狀態。
+       display:none 的子樹完全沒有 box，手指一動才 remove hidden 就得整棵重建 layout，
+       那一幀的成本就是「起手頓一下」。改用 visibility 藏起來，layout 早就算好了。
+       height:0 + overflow:hidden 是必要的：absolute 元素仍會撐大捲動範圍，
+       停放的頁比當前頁高時，畫面下方會多出一段捲不完的空白。 */
+    .view-section.view-parked {
+      position: absolute; left: 0; right: 0;
+      visibility: hidden; pointer-events: none;
+      height: 0; overflow: hidden;
+    }
 
     /* 歷史紀錄智慧浮動選單 */
     .suggestion-host { position: relative; }
@@ -929,10 +939,14 @@
         });
         _dataVersion++;
         updateHistoryDatalists(); renderLists(); checkReminders();
+        _scheduleParkNeighbors(); // 首次載入也要先把左右鄰頁排好版，第一次滑動才不頓
         // 🔧 防禦：iOS PWA / 冷啟動時 main-app 剛由 display:none 轉 block，
         // innerHTML 寫入後可能未觸發重繪，下一個 frame 再強制 render 一次
         requestAnimationFrame(() => renderLists());
-        if (!document.getElementById('view-stats').classList.contains('hidden')) {
+        // 停放中的報表頁沒有 hidden class 但高度是 0，這時候畫圖會畫成 0 高度的壞圖。
+        // 判斷「真的看得到」要連 view-parked 一起排除。
+        const statsView = document.getElementById('view-stats');
+        if (!statsView.classList.contains('hidden') && !statsView.classList.contains('view-parked')) {
             if(google.visualization) window.updateCharts(); else google.charts.setOnLoadCallback(window.updateCharts);
         }
       });
@@ -1206,6 +1220,65 @@
   let _swipeAnimTimer = 0;
 
   // 把預備中的下一頁收回去（使用者改變方向、或滑動結束時）
+  // ── 相鄰分頁「停放」──────────────────────────────────────────────
+  // 起手頓的來源：下一頁在 touchmove 第一幀才 remove hidden，display:none 的子樹
+  // 沒有任何 box，那一幀要把整棵樹重新 layout。改成切頁後趁閒置先把左右鄰頁
+  // 排好版停在旁邊，手指一動只剩改 transform（合成器的活，不碰 layout）。
+  const _viewEl = (idx) => (idx >= 0 && idx < TAB_ORDER.length)
+      ? document.getElementById(`view-${TAB_ORDER[idx]}`) : null;
+  const _activeIdx = () => {
+      const el = document.querySelector('.tab.active');
+      return el ? TAB_ORDER.indexOf(el.id.replace('tab-', '')) : -1;
+  };
+  // 這一頁該不該停放：是當前頁的左右鄰居，且自己不是當前頁
+  const _shouldPark = (view) => {
+      const idx = _activeIdx();
+      if (idx < 0 || !view) return false;
+      const vIdx = TAB_ORDER.indexOf(view.id.replace('view-', ''));
+      return vIdx >= 0 && vIdx !== idx && Math.abs(vIdx - idx) === 1;
+  };
+  const _parkView = (view, topPx) => {
+      if (!view) return;
+      view.classList.remove('hidden', 'swipe-active', 'swipe-carousel', 'swipe-snap');
+      view.style.transform = '';
+      view.style.top = (topPx != null ? topPx : 0) + 'px';
+      view.classList.add('view-parked');
+  };
+  const _unparkAll = () => {
+      document.querySelectorAll('.view-section.view-parked').forEach(v => {
+          v.classList.remove('view-parked');
+          v.style.top = '';
+          v.classList.add('hidden');
+      });
+  };
+  let _parkScheduled = 0;
+  window._parkNeighbors = () => {
+      _parkScheduled = 0;
+      if (_swipePhase === 'swiping' || _swipeFinishPending) return; // 滑動中不動它
+      // 還沒登入時 main-app 是 display:none，量到的 offsetTop 全是 0，停放位置會錯
+      const app = document.getElementById('main-app');
+      if (!app || app.style.display === 'none') return;
+      const idx = _activeIdx();
+      const cur = _viewEl(idx);
+      if (idx < 0 || !cur || cur.classList.contains('hidden')) return;
+      const top = cur.offsetTop;
+      const keep = [_viewEl(idx - 1), _viewEl(idx + 1)].filter(Boolean);
+      document.querySelectorAll('.view-section').forEach(v => {
+          if (v === cur) return;
+          if (keep.includes(v)) _parkView(v, top);
+          else if (v.classList.contains('view-parked')) {
+              v.classList.remove('view-parked'); v.style.top = ''; v.classList.add('hidden');
+          }
+      });
+  };
+  // 排到閒置時做：停放要重排兩個頁面，跟切頁動畫撞在同一幀就本末倒置了。
+  const _scheduleParkNeighbors = () => {
+      if (_parkScheduled) return;
+      _parkScheduled = 1;
+      if (window.requestIdleCallback) requestIdleCallback(window._parkNeighbors, { timeout: 600 });
+      else _parkScheduled = setTimeout(window._parkNeighbors, 200);
+  };
+
   function _releaseNextView() {
       if (_swipeNextView) {
           _swipeNextView.classList.remove('swipe-active', 'swipe-carousel', 'swipe-snap');
@@ -1215,7 +1288,11 @@
           // 用當前 active tab 判斷，不用 index 比較：touchstart 清場時 _swipeIdx 還是上一輪的值。
           const activeEl = document.querySelector('.tab.active');
           const activeViewId = activeEl ? `view-${activeEl.id.replace('tab-', '')}` : '';
-          if (_swipeNextView.id !== activeViewId) _swipeNextView.classList.add('hidden');
+          if (_swipeNextView.id !== activeViewId) {
+              // 還原成停放狀態（不是 hidden），下次起手才不用重新 layout
+              if (_shouldPark(_swipeNextView)) _parkView(_swipeNextView, _swipeView ? _swipeView.offsetTop : 0);
+              else _swipeNextView.classList.add('hidden');
+          }
       }
       _swipeNextView = null; _swipeNextIdx = -1; _swipeDir = 0;
   }
@@ -1226,12 +1303,14 @@
       if (nextIdx < 0 || nextIdx >= TAB_ORDER.length) return false; // 邊界，交給阻尼處理
       const nextView = document.getElementById(`view-${TAB_ORDER[nextIdx]}`);
       if (!nextView || !_swipeView) return false;
-      nextView.classList.remove('hidden', 'swipe-snap');
+      // 已停放的頁只要拿掉 view-parked（visibility 與高度限制），layout 早就算好了；
+      // 沒停放到的（例如剛啟動還沒排到）才走原本 display:none → block 的路。
+      nextView.classList.remove('hidden', 'swipe-snap', 'view-parked');
       nextView.classList.add('swipe-active', 'swipe-carousel');
       nextView.style.top = _swipeView.offsetTop + 'px';
       nextView.style.transform = `translate3d(${direction > 0 ? window.innerWidth : -window.innerWidth}px, 0, 0)`;
-      // 🔧 強制 reflow 讓「剛從 display:none 出來 + 初始位置」確實生效。
-      //    少了這行，瀏覽器可能把移除 hidden、設起始位置、加 transition、改位置合併成同一
+      // 🔧 強制 reflow 讓「剛解除停放 + 初始位置」確實生效。
+      //    少了這行，瀏覽器可能把改可見、設起始位置、加 transition、改位置合併成同一
       //    個 frame，transition 就不會觸發（表現為第一次滑動整個沒反應）。
       void nextView.offsetHeight;
       _swipeNextView = nextView; _swipeNextIdx = nextIdx; _swipeDir = direction;
@@ -1269,12 +1348,15 @@
       if (_swipeFinishPending) { const f = _swipeFinishPending; _swipeFinishPending = null; f(); }
       if (_swipeAnimTimer) { clearTimeout(_swipeAnimTimer); _swipeAnimTimer = 0; }
       _releaseNextView();
-      // 強制清掉 .view-section 上殘留的 inline style，讓新滑動從乾淨狀態開始
+      // 強制清掉 .view-section 上殘留的 inline style，讓新滑動從乾淨狀態開始。
+      // 停放中的頁例外：它的 top 是停放位置，清掉會讓下次進場位置跑掉，
+      // 而且把它一起洗掉就等於白停放了。
       document.querySelectorAll('.view-section').forEach(v => {
+          const parked = v.classList.contains('view-parked');
           if (v.style.transform) v.style.transform = '';
-          if (v.style.top) v.style.top = '';
+          if (!parked && v.style.top) v.style.top = '';
           v.classList.remove('swipe-snap');
-          v.classList.remove('swipe-active');
+          if (!parked) v.classList.remove('swipe-active');
           v.classList.remove('swipe-carousel');
       });
   }
@@ -2258,9 +2340,12 @@
           editSeriesModal.classList.remove('show');
           pendingEditId = null; pendingEditDrilldownCat = null;
       }
+      _unparkAll();  // 先全部解除停放，換頁後再依新的當前頁重新停放左右鄰居
       document.querySelectorAll('.view-section').forEach(e=>e.classList.add('hidden'));
       document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
-      document.getElementById(`view-${n}`).classList.remove('hidden');
+      const shown = document.getElementById(`view-${n}`);
+      shown.classList.remove('hidden', 'view-parked', 'swipe-active', 'swipe-carousel', 'swipe-snap');
+      shown.style.top = ''; shown.style.transform = '';
       document.getElementById(`tab-${n}`).classList.add('active');
       // 圖表必須在可見之後才畫（Google Charts 在 display:none 容器裡會畫成 0 寬），
       // 但不要跟切頁擠在同一 frame——還給瀏覽器一幀把新頁畫出來。
@@ -2270,6 +2355,7 @@
       if((n==='expected' || n==='expense' || n==='income') && _listsRenderedVersion !== _dataVersion) window.renderLists();
       const filterPanel = document.getElementById('stat-filter-panel');
       if(filterPanel && n !== 'stats') filterPanel.classList.add('hidden');
+      _scheduleParkNeighbors();
   };
 
   // 🔑 排序鍵：待繳項目用 dueDate（到期日），已結清/收支用 date（記帳日）
