@@ -337,7 +337,7 @@
       <button id="btn-submit-exp-exp" class="btn-expected" onclick="saveData('expected')">儲存待繳</button>
       <!-- 🆕 編輯模式專屬：將「續期」整合進編輯表單 -->
       <!-- 視覺降級：續期不是儲存流程的主要動作，用文字按鈕風格、字體較小，避免和「儲存」「取消」搶焦點 -->
-      <button id="btn-renew-in-edit" class="hidden" style="margin-top:10px; width:100%; background:transparent; color:#e65100; border:1px dashed #ffb74d; padding:9px; border-radius:8px; font-weight:normal; font-size:13px; cursor:pointer; box-shadow:none;" onclick="duplicateFromEdit()">🔁 順便由這筆建立後續多期</button>
+      <button id="btn-renew-in-edit" class="hidden" style="margin-top:10px; width:100%; background:transparent; color:#e65100; border:1px dashed #ffb74d; padding:9px; border-radius:8px; font-weight:normal; font-size:13px; cursor:pointer; box-shadow:none;" onclick="duplicateFromEdit()">🔁 設為定期帳單，自動建立後續各期</button>
       <button id="btn-cancel-exp-exp" class="btn-setting hidden" style="margin-top:10px; width:100%; background:#757575;" onclick="cancelEdit()">❌ 取消</button>
     </div>
     
@@ -1884,7 +1884,7 @@
           const countContainer = document.getElementById('main-count-container'); if(countContainer) countContainer.style.display = 'none';
           const customContainer = document.getElementById('main-custom-container'); if(customContainer) customContainer.style.display = 'none';
           const previewBox = document.getElementById('main-preview'); if(previewBox) previewBox.classList.add('hidden');
-          // 編輯模式中才顯示「由這筆建立後續多期」按鈕
+          // 編輯模式中才顯示「設為定期帳單」按鈕
           const renewBtn = document.getElementById('btn-renew-in-edit'); if(renewBtn) renewBtn.classList.remove('hidden');
       }
 
